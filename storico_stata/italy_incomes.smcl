@@ -1,0 +1,641 @@
+{smcl}
+{com}{sf}{ul off}{txt}{.-}
+      name:  {res}<unnamed>
+       {txt}log:  {res}C:\Users\g1ysl01\Documents\Arce_consumption\storico_stata\italy_incomes.smcl
+  {txt}log type:  {res}smcl
+ {txt}opened on:  {res}27 Sep 2021, 14:11:36
+{txt}
+{com}. 
+. //Merge data
+. use comp.dta
+{txt}
+{com}. drop if nord != 1
+{txt}(284,340 observations deleted)
+
+{com}. merge 1:1 nquest anno using rfam
+{res}
+{txt}{col 5}Result{col 33}Number of obs
+{col 5}{hline 41}
+{col 5}Not matched{col 30}{res}               0
+{txt}{col 5}Matched{col 30}{res}         154,792{txt}  (_merge==3)
+{col 5}{hline 41}
+
+{com}. drop _merge
+{txt}
+{com}. merge 1:1 nquest anno using cons
+{res}
+{txt}{col 5}Result{col 33}Number of obs
+{col 5}{hline 41}
+{col 5}Not matched{col 30}{res}               0
+{txt}{col 5}Matched{col 30}{res}         154,792{txt}  (_merge==3)
+{col 5}{hline 41}
+
+{com}. drop _merge
+{txt}
+{com}. merge 1:1 nquest anno using peso
+{res}
+{txt}{col 5}Result{col 33}Number of obs
+{col 5}{hline 41}
+{col 5}Not matched{col 30}{res}               0
+{txt}{col 5}Matched{col 30}{res}         154,792{txt}  (_merge==3)
+{col 5}{hline 41}
+
+{com}. drop _merge
+{txt}
+{com}. //linb and ldip have data on individuals not just household heads so we need to drop those
+. /*
+> save working_data, replace
+> use linb.dta
+> drop if nord != 1
+> merge 1:1 nquest anno using working_data
+> drop _merge
+> save working_data, replace
+> use ldip.dta
+> drop if nord != 1
+> merge 1:1 nquest anno using working_data
+> */
+. 
+. //Rename colsrename anno year
+. rename eta age
+{res}{txt}
+{com}. rename ncomp hhold_size
+{res}{txt}
+{com}. rename sesso gender
+{res}{txt}
+{com}. rename ireg region 
+{res}{txt}
+{com}. rename anno year
+{res}{txt}
+{com}. rename peso weight
+{res}{txt}
+{com}. 
+. //Drop data before 1995, n=86729
+. drop if year < 1995
+{txt}(68,063 observations deleted)
+
+{com}. 
+. //Drop if residing in a small location n=75977
+. drop if acom5 == 1
+{txt}(10,752 observations deleted)
+
+{com}. 
+. //Drop if age of household head outside [25,60] n=42202
+. drop if age<25
+{txt}(541 observations deleted)
+
+{com}. drop if age>60
+{txt}(33,234 observations deleted)
+
+{com}. 
+. //Create consumption and income cols as in paper
+. gen income_1 = yl1+yt+ym+yc
+{txt}
+{com}. gen income_2 = ytp1 +yta + yl1+ym1 + yc
+{txt}
+{com}. gen income_3 = y1
+{txt}
+{com}. gen consumption = cn
+{txt}
+{com}. 
+. 
+. forval num=1/3{c -(}
+{txt}  2{com}.         preserve
+{txt}  3{com}.         //Drop if negative income/consumption
+.         drop if income_`num'<0
+{txt}  4{com}.         drop if consumption < 0
+{txt}  5{com}. 
+.         //Define income to consumption ration
+.         gen inc_cons_ratio_`num' = income_`num'/consumption
+{txt}  6{com}. 
+.         //gen cutoff vals and use to trim top and bottom .5% of data for each measure of income
+.         sort(inc_cons_ratio_`num')
+{txt}  7{com}.         egen total_weight = sum(weight)
+{txt}  8{com}.         local bot_cutoff = 0
+{txt}  9{com}.         local top_cutoff = 0
+{txt} 10{com}.         local curr_weight = 0
+{txt} 11{com}.         local N = _N
+{txt} 12{com}.         forval i = 1/`N'{c -(}
+{txt} 13{com}.                 local curr_weight = `curr_weight' + weight[`i']
+{txt} 14{com}.                 if `curr_weight' > .005*total_weight[1]{c -(}
+{txt} 15{com}.                         local bot_cutoff = inc_cons_ratio_`num'[`i'-1]
+{txt} 16{com}.                         continue, break
+{txt} 17{com}.                 {c )-}
+{txt} 18{com}.         {c )-}
+{txt} 19{com}.         local curr_weight = 0
+{txt} 20{com}.         forval i = 0/`N'{c -(}
+{txt} 21{com}.                 local curr_weight = `curr_weight' + weight[`N' - `i']
+{txt} 22{com}.                 if `curr_weight' > .005*total_weight[1]{c -(}
+{txt} 23{com}.                         local top_cutoff = inc_cons_ratio_`num'[_N - `i' + 1]
+{txt} 24{com}.                         continue, break
+{txt} 25{com}.                 {c )-}
+{txt} 26{com}.         {c )-}
+{txt} 27{com}.         //Use cutoffs to drop top and bot .05% of data
+.         drop if inc_cons_ratio_`num' > `top_cutoff'
+{txt} 28{com}.         //The bottom cutoff is often 0, so I drop a bunch of values here. Not sure what to do exactly
+.         drop if inc_cons_ratio_`num' <= `bot_cutoff'
+{txt} 29{com}. 
+. 
+.         //drop data not in 2006 or 2014
+.         drop if year != 2006 & year != 2014
+{txt} 30{com}. 
+.         //Create a categorical education variable as defined in paper
+.         gen educ = 1 if studio == 1 | studio ==2 
+{txt} 31{com}.         replace educ = 2 if studio == 3
+{txt} 32{com}.         replace educ = 3 if studio == 4 | studio == 5
+{txt} 33{com}.         replace educ = 4 if studio == 6
+{txt} 34{com}. 
+.         //Deflate income and consumption variables using OECD CPI numbers (base year is 2015)
+.         replace income_`num' = income_`num'/(86.4/100) if year == 2006
+{txt} 35{com}.         replace consumption = consumption/(86.4/100) if year == 2006
+{txt} 36{com}.         replace income_`num' = income_`num'/(99.9/100) if year == 2014
+{txt} 37{com}.         replace consumption = consumption/(99.9/100) if year == 2014
+{txt} 38{com}. 
+.         //Generate variables for regression
+.         gen age_sqr = age^2
+{txt} 39{com}.         gen hhold_size_sqr = hhold_size^2
+{txt} 40{com}.         gen ln_inc = ln(income_`num')
+{txt} 41{com}.         gen ln_consump = ln(consumption)
+{txt} 42{com}. 
+.         //Run regressions as in paper and generate residual values for consumption and income
+.         //reg ln_inc age age_sqr i.gender i.educ hhold_size hhold_size_sqr i.region i.educ#year i.gender#year year [pweight = weight]
+.         reg ln_inc age i.gender i.educ hhold_size i.region i.educ#year i.gender#year year [pweight = weight]
+{txt} 43{com}.         predict resid_inc_log, residuals
+{txt} 44{com}.         gen resid_income = exp(resid_inc_log)
+{txt} 45{com}. 
+.         //reg ln_consump age age_sqr i.gender i.educ hhold_size hhold_size_sqr i.region i.educ#year i.gender#year year [pweight = weight]
+.         reg ln_consump age i.gender i.educ hhold_size i.region i.educ#year i.gender#year year [pweight = weight]
+{txt} 46{com}.         predict resid_consump_log, residuals
+{txt} 47{com}.         gen resid_consump = exp(resid_consump_log)
+{txt} 48{com}. 
+.         sum resid_income  if year == 2006
+{txt} 49{com}.         sum income_`num' if year == 2006
+{txt} 50{com}.         sum resid_income if year == 2014
+{txt} 51{com}.         sum income_`num' if year == 2014
+{txt} 52{com}.         sum resid_consump if year == 2006
+{txt} 53{com}.         sum resid_consump if year == 2014
+{txt} 54{com}.         restore
+{txt} 55{com}. {c )-}
+{txt}(35 observations deleted)
+(0 observations deleted)
+(223 observations deleted)
+(204 observations deleted)
+(34,704 observations deleted)
+(6,435 missing values generated)
+(2,977 real changes made)
+(3,384 real changes made)
+(74 real changes made)
+(3,662 real changes made)
+(3,662 real changes made)
+(3,374 real changes made)
+(3,374 real changes made)
+(sum of wgt is 7,293.99693000317)
+{p 0 6 2}note: {bf:4.educ#2014.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2014.year} omitted because of collinearity.{p_end}
+
+Linear regression                               Number of obs     = {res}     7,036
+                                                {txt}F(30, 7005)       =  {res}    71.30
+                                                {txt}Prob > F          = {res}    0.0000
+                                                {txt}R-squared         = {res}    0.3195
+                                                {txt}Root MSE          =    {res} .63905
+
+{txt}{hline 13}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 14}{c |}{col 26}    Robust
+{col 1}      ln_inc{col 14}{c |} Coefficient{col 26}  std. err.{col 38}      t{col 46}   P>|t|{col 54}     [95% con{col 67}f. interval]
+{hline 13}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 9}age {c |}{col 14}{res}{space 2} .0168081{col 26}{space 2} .0012971{col 37}{space 1}   12.96{col 46}{space 3}0.000{col 54}{space 4} .0142655{col 67}{space 3} .0193507
+{txt}{space 4}2.gender {c |}{col 14}{res}{space 2}-.1362364{col 26}{space 2} .0291659{col 37}{space 1}   -4.67{col 46}{space 3}0.000{col 54}{space 4}-.1934104{col 67}{space 3}-.0790624
+{txt}{space 12} {c |}
+{space 8}educ {c |}
+{space 10}2  {c |}{col 14}{res}{space 2} .2505399{col 26}{space 2} .0440892{col 37}{space 1}    5.68{col 46}{space 3}0.000{col 54}{space 4} .1641117{col 67}{space 3} .3369682
+{txt}{space 10}3  {c |}{col 14}{res}{space 2} .6258462{col 26}{space 2} .0423769{col 37}{space 1}   14.77{col 46}{space 3}0.000{col 54}{space 4} .5427746{col 67}{space 3} .7089177
+{txt}{space 10}4  {c |}{col 14}{res}{space 2}  1.16302{col 26}{space 2} .0853574{col 37}{space 1}   13.63{col 46}{space 3}0.000{col 54}{space 4} .9956933{col 67}{space 3} 1.330346
+{txt}{space 12} {c |}
+{space 2}hhold_size {c |}{col 14}{res}{space 2}  .163843{col 26}{space 2} .0078865{col 37}{space 1}   20.78{col 46}{space 3}0.000{col 54}{space 4}  .148383{col 67}{space 3}  .179303
+{txt}{space 12} {c |}
+{space 6}region {c |}
+{space 10}2  {c |}{col 14}{res}{space 2} .1462758{col 26}{space 2} .1333968{col 37}{space 1}    1.10{col 46}{space 3}0.273{col 54}{space 4}-.1152223{col 67}{space 3} .4077739
+{txt}{space 10}3  {c |}{col 14}{res}{space 2} .1809307{col 26}{space 2} .0648675{col 37}{space 1}    2.79{col 46}{space 3}0.005{col 54}{space 4} .0537708{col 67}{space 3} .3080905
+{txt}{space 10}4  {c |}{col 14}{res}{space 2} .0339757{col 26}{space 2} .0927782{col 37}{space 1}    0.37{col 46}{space 3}0.714{col 54}{space 4}-.1478976{col 67}{space 3}  .215849
+{txt}{space 10}5  {c |}{col 14}{res}{space 2} .0169451{col 26}{space 2}  .068008{col 37}{space 1}    0.25{col 46}{space 3}0.803{col 54}{space 4}-.1163712{col 67}{space 3} .1502614
+{txt}{space 10}6  {c |}{col 14}{res}{space 2} .1081238{col 26}{space 2} .0769141{col 37}{space 1}    1.41{col 46}{space 3}0.160{col 54}{space 4}-.0426511{col 67}{space 3} .2588988
+{txt}{space 10}7  {c |}{col 14}{res}{space 2}  .150306{col 26}{space 2} .0688254{col 37}{space 1}    2.18{col 46}{space 3}0.029{col 54}{space 4} .0153875{col 67}{space 3} .2852246
+{txt}{space 10}8  {c |}{col 14}{res}{space 2} .1197008{col 26}{space 2} .0677132{col 37}{space 1}    1.77{col 46}{space 3}0.077{col 54}{space 4}-.0130375{col 67}{space 3} .2524391
+{txt}{space 10}9  {c |}{col 14}{res}{space 2} .1476844{col 26}{space 2} .0674459{col 37}{space 1}    2.19{col 46}{space 3}0.029{col 54}{space 4}   .01547{col 67}{space 3} .2798988
+{txt}{space 9}10  {c |}{col 14}{res}{space 2} .0159237{col 26}{space 2} .0766798{col 37}{space 1}    0.21{col 46}{space 3}0.835{col 54}{space 4} -.134392{col 67}{space 3} .1662394
+{txt}{space 9}11  {c |}{col 14}{res}{space 2} .0651174{col 26}{space 2} .0776059{col 37}{space 1}    0.84{col 46}{space 3}0.401{col 54}{space 4}-.0870138{col 67}{space 3} .2172485
+{txt}{space 9}12  {c |}{col 14}{res}{space 2} .0051859{col 26}{space 2} .0772663{col 37}{space 1}    0.07{col 46}{space 3}0.946{col 54}{space 4}-.1462795{col 67}{space 3} .1566513
+{txt}{space 9}13  {c |}{col 14}{res}{space 2}-.0148875{col 26}{space 2}  .083264{col 37}{space 1}   -0.18{col 46}{space 3}0.858{col 54}{space 4}-.1781102{col 67}{space 3} .1483352
+{txt}{space 9}14  {c |}{col 14}{res}{space 2}-.1459165{col 26}{space 2} .1069385{col 37}{space 1}   -1.36{col 46}{space 3}0.172{col 54}{space 4}-.3555484{col 67}{space 3} .0637154
+{txt}{space 9}15  {c |}{col 14}{res}{space 2} -.498765{col 26}{space 2} .0733292{col 37}{space 1}   -6.80{col 46}{space 3}0.000{col 54}{space 4}-.6425124{col 67}{space 3}-.3550175
+{txt}{space 9}16  {c |}{col 14}{res}{space 2}-.2498376{col 26}{space 2} .0726142{col 37}{space 1}   -3.44{col 46}{space 3}0.001{col 54}{space 4}-.3921834{col 67}{space 3}-.1074917
+{txt}{space 9}17  {c |}{col 14}{res}{space 2}-.3527428{col 26}{space 2} .1304045{col 37}{space 1}   -2.70{col 46}{space 3}0.007{col 54}{space 4} -.608375{col 67}{space 3}-.0971105
+{txt}{space 9}18  {c |}{col 14}{res}{space 2} -.343499{col 26}{space 2} .0793825{col 37}{space 1}   -4.33{col 46}{space 3}0.000{col 54}{space 4}-.4991128{col 67}{space 3}-.1878852
+{txt}{space 9}19  {c |}{col 14}{res}{space 2}-.3956996{col 26}{space 2} .0692227{col 37}{space 1}   -5.72{col 46}{space 3}0.000{col 54}{space 4}-.5313971{col 67}{space 3}-.2600021
+{txt}{space 9}20  {c |}{col 14}{res}{space 2}-.1258449{col 26}{space 2} .0809673{col 37}{space 1}   -1.55{col 46}{space 3}0.120{col 54}{space 4}-.2845653{col 67}{space 3} .0328755
+{txt}{space 12} {c |}
+{space 3}educ#year {c |}
+{space 5}1 2014  {c |}{col 14}{res}{space 2} .0207837{col 26}{space 2} .1492155{col 37}{space 1}    0.14{col 46}{space 3}0.889{col 54}{space 4}-.2717238{col 67}{space 3} .3132913
+{txt}{space 5}2 2014  {c |}{col 14}{res}{space 2} .1014612{col 26}{space 2} .1304478{col 37}{space 1}    0.78{col 46}{space 3}0.437{col 54}{space 4}-.1542559{col 67}{space 3} .3571783
+{txt}{space 5}3 2014  {c |}{col 14}{res}{space 2} .1815151{col 26}{space 2} .1283739{col 37}{space 1}    1.41{col 46}{space 3}0.157{col 54}{space 4}-.0701365{col 67}{space 3} .4331667
+{txt}{space 5}4 2014  {c |}{col 14}{res}{space 2}        0{col 26}{txt}  (omitted)
+{space 12} {c |}
+{space 1}gender#year {c |}
+{space 5}1 2014  {c |}{col 14}{res}{space 2} -.011901{col 26}{space 2} .0450142{col 37}{space 1}   -0.26{col 46}{space 3}0.791{col 54}{space 4}-.1001424{col 67}{space 3} .0763404
+{txt}{space 5}2 2014  {c |}{col 14}{res}{space 2}        0{col 26}{txt}  (omitted)
+{space 12} {c |}
+{space 8}year {c |}{col 14}{res}{space 2}-.0567996{col 26}{space 2} .0164173{col 37}{space 1}   -3.46{col 46}{space 3}0.001{col 54}{space 4}-.0889825{col 67}{space 3}-.0246166
+{txt}{space 7}_cons {c |}{col 14}{res}{space 2} 122.7876{col 26}{space 2} 32.92628{col 37}{space 1}    3.73{col 46}{space 3}0.000{col 54}{space 4}  58.2421{col 67}{space 3} 187.3331
+{txt}{hline 13}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}{txt}(sum of wgt is 7,293.99693000317)
+{p 0 6 2}note: {bf:4.educ#2014.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2014.year} omitted because of collinearity.{p_end}
+
+Linear regression                               Number of obs     = {res}     7,036
+                                                {txt}F(30, 7005)       =  {res}    83.61
+                                                {txt}Prob > F          = {res}    0.0000
+                                                {txt}R-squared         = {res}    0.4001
+                                                {txt}Root MSE          =    {res}  .3868
+
+{txt}{hline 13}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 14}{c |}{col 26}    Robust
+{col 1}  ln_consump{col 14}{c |} Coefficient{col 26}  std. err.{col 38}      t{col 46}   P>|t|{col 54}     [95% con{col 67}f. interval]
+{hline 13}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 9}age {c |}{col 14}{res}{space 2} .0113967{col 26}{space 2} .0007173{col 37}{space 1}   15.89{col 46}{space 3}0.000{col 54}{space 4} .0099906{col 67}{space 3} .0128029
+{txt}{space 4}2.gender {c |}{col 14}{res}{space 2}-.0726538{col 26}{space 2} .0175171{col 37}{space 1}   -4.15{col 46}{space 3}0.000{col 54}{space 4}-.1069927{col 67}{space 3}-.0383149
+{txt}{space 12} {c |}
+{space 8}educ {c |}
+{space 10}2  {c |}{col 14}{res}{space 2} .1872328{col 26}{space 2}  .028198{col 37}{space 1}    6.64{col 46}{space 3}0.000{col 54}{space 4} .1319562{col 67}{space 3} .2425094
+{txt}{space 10}3  {c |}{col 14}{res}{space 2} .4589349{col 26}{space 2} .0283283{col 37}{space 1}   16.20{col 46}{space 3}0.000{col 54}{space 4}  .403403{col 67}{space 3} .5144669
+{txt}{space 10}4  {c |}{col 14}{res}{space 2} .8924466{col 26}{space 2} .0902781{col 37}{space 1}    9.89{col 46}{space 3}0.000{col 54}{space 4} .7154741{col 67}{space 3} 1.069419
+{txt}{space 12} {c |}
+{space 2}hhold_size {c |}{col 14}{res}{space 2} .1312113{col 26}{space 2} .0052429{col 37}{space 1}   25.03{col 46}{space 3}0.000{col 54}{space 4} .1209336{col 67}{space 3} .1414891
+{txt}{space 12} {c |}
+{space 6}region {c |}
+{space 10}2  {c |}{col 14}{res}{space 2} .0325797{col 26}{space 2} .1014765{col 37}{space 1}    0.32{col 46}{space 3}0.748{col 54}{space 4} -.166345{col 67}{space 3} .2315045
+{txt}{space 10}3  {c |}{col 14}{res}{space 2} .0842435{col 26}{space 2} .0261684{col 37}{space 1}    3.22{col 46}{space 3}0.001{col 54}{space 4} .0329456{col 67}{space 3} .1355414
+{txt}{space 10}4  {c |}{col 14}{res}{space 2}-.0928493{col 26}{space 2} .0385389{col 37}{space 1}   -2.41{col 46}{space 3}0.016{col 54}{space 4}-.1683973{col 67}{space 3}-.0173014
+{txt}{space 10}5  {c |}{col 14}{res}{space 2}-.0801815{col 26}{space 2} .0290828{col 37}{space 1}   -2.76{col 46}{space 3}0.006{col 54}{space 4}-.1371925{col 67}{space 3}-.0231705
+{txt}{space 10}6  {c |}{col 14}{res}{space 2}-.0005659{col 26}{space 2} .0359297{col 37}{space 1}   -0.02{col 46}{space 3}0.987{col 54}{space 4}-.0709991{col 67}{space 3} .0698673
+{txt}{space 10}7  {c |}{col 14}{res}{space 2} .0267337{col 26}{space 2} .0285493{col 37}{space 1}    0.94{col 46}{space 3}0.349{col 54}{space 4}-.0292316{col 67}{space 3}  .082699
+{txt}{space 10}8  {c |}{col 14}{res}{space 2} .0045386{col 26}{space 2} .0255767{col 37}{space 1}    0.18{col 46}{space 3}0.859{col 54}{space 4}-.0455995{col 67}{space 3} .0546767
+{txt}{space 10}9  {c |}{col 14}{res}{space 2} .0480453{col 26}{space 2} .0270813{col 37}{space 1}    1.77{col 46}{space 3}0.076{col 54}{space 4}-.0050423{col 67}{space 3} .1011329
+{txt}{space 9}10  {c |}{col 14}{res}{space 2} -.033675{col 26}{space 2} .0387583{col 37}{space 1}   -0.87{col 46}{space 3}0.385{col 54}{space 4} -.109653{col 67}{space 3} .0423031
+{txt}{space 9}11  {c |}{col 14}{res}{space 2} -.024413{col 26}{space 2}  .037418{col 37}{space 1}   -0.65{col 46}{space 3}0.514{col 54}{space 4}-.0977636{col 67}{space 3} .0489376
+{txt}{space 9}12  {c |}{col 14}{res}{space 2}  .052379{col 26}{space 2} .0345372{col 37}{space 1}    1.52{col 46}{space 3}0.129{col 54}{space 4}-.0153243{col 67}{space 3} .1200823
+{txt}{space 9}13  {c |}{col 14}{res}{space 2}-.0999611{col 26}{space 2} .0431528{col 37}{space 1}   -2.32{col 46}{space 3}0.021{col 54}{space 4}-.1845537{col 67}{space 3}-.0153685
+{txt}{space 9}14  {c |}{col 14}{res}{space 2}-.1129694{col 26}{space 2} .0483694{col 37}{space 1}   -2.34{col 46}{space 3}0.020{col 54}{space 4}-.2077881{col 67}{space 3}-.0181506
+{txt}{space 9}15  {c |}{col 14}{res}{space 2}-.3420542{col 26}{space 2} .0269865{col 37}{space 1}  -12.67{col 46}{space 3}0.000{col 54}{space 4} -.394956{col 67}{space 3}-.2891524
+{txt}{space 9}16  {c |}{col 14}{res}{space 2}-.2276201{col 26}{space 2}  .032496{col 37}{space 1}   -7.00{col 46}{space 3}0.000{col 54}{space 4}-.2913221{col 67}{space 3}-.1639181
+{txt}{space 9}17  {c |}{col 14}{res}{space 2}-.2957733{col 26}{space 2} .0708404{col 37}{space 1}   -4.18{col 46}{space 3}0.000{col 54}{space 4} -.434642{col 67}{space 3}-.1569046
+{txt}{space 9}18  {c |}{col 14}{res}{space 2}-.3017051{col 26}{space 2} .0463688{col 37}{space 1}   -6.51{col 46}{space 3}0.000{col 54}{space 4} -.392602{col 67}{space 3}-.2108082
+{txt}{space 9}19  {c |}{col 14}{res}{space 2}-.3235024{col 26}{space 2} .0309041{col 37}{space 1}  -10.47{col 46}{space 3}0.000{col 54}{space 4}-.3840838{col 67}{space 3}-.2629211
+{txt}{space 9}20  {c |}{col 14}{res}{space 2}-.1247222{col 26}{space 2} .0430879{col 37}{space 1}   -2.89{col 46}{space 3}0.004{col 54}{space 4}-.2091876{col 67}{space 3}-.0402569
+{txt}{space 12} {c |}
+{space 3}educ#year {c |}
+{space 5}1 2014  {c |}{col 14}{res}{space 2} .1274987{col 26}{space 2} .1131821{col 37}{space 1}    1.13{col 46}{space 3}0.260{col 54}{space 4}-.0943725{col 67}{space 3} .3493699
+{txt}{space 5}2 2014  {c |}{col 14}{res}{space 2}  .156965{col 26}{space 2} .1047811{col 37}{space 1}    1.50{col 46}{space 3}0.134{col 54}{space 4}-.0484376{col 67}{space 3} .3623677
+{txt}{space 5}3 2014  {c |}{col 14}{res}{space 2} .1829887{col 26}{space 2} .1047409{col 37}{space 1}    1.75{col 46}{space 3}0.081{col 54}{space 4}-.0223352{col 67}{space 3} .3883127
+{txt}{space 5}4 2014  {c |}{col 14}{res}{space 2}        0{col 26}{txt}  (omitted)
+{space 12} {c |}
+{space 1}gender#year {c |}
+{space 5}1 2014  {c |}{col 14}{res}{space 2}-.0190408{col 26}{space 2} .0254345{col 37}{space 1}   -0.75{col 46}{space 3}0.454{col 54}{space 4}-.0689001{col 67}{space 3} .0308186
+{txt}{space 5}2 2014  {c |}{col 14}{res}{space 2}        0{col 26}{txt}  (omitted)
+{space 12} {c |}
+{space 8}year {c |}{col 14}{res}{space 2}-.0525774{col 26}{space 2} .0131124{col 37}{space 1}   -4.01{col 46}{space 3}0.000{col 54}{space 4}-.0782817{col 67}{space 3}-.0268732
+{txt}{space 7}_cons {c |}{col 14}{res}{space 2} 114.4967{col 26}{space 2} 26.30334{col 37}{space 1}    4.35{col 46}{space 3}0.000{col 54}{space 4}  62.9342{col 67}{space 3} 166.0592
+{txt}{hline 13}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_income {c |}{res}      3,662    1.121554    .6132518   .0004508    13.2323
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 4}income_1 {c |}{res}      3,662    40379.79    29023.41   13.61859   752366.4
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_income {c |}{res}      3,374    1.214996    .6875852   .0002438   12.01328
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 4}income_1 {c |}{res}      3,374    32839.42    22818.26   3.991297     333576
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_cons~p {c |}{res}      3,662    1.069435    .4402467   .0934788   7.931597
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_cons~p {c |}{res}      3,374    1.106852    .4883783   .1154812   6.513028
+{txt}(38 observations deleted)
+(0 observations deleted)
+(239 observations deleted)
+(208 observations deleted)
+(34,678 observations deleted)
+(6,438 missing values generated)
+(2,976 real changes made)
+(3,388 real changes made)
+(74 real changes made)
+(3,664 real changes made)
+(3,664 real changes made)
+(3,375 real changes made)
+(3,375 real changes made)
+(sum of wgt is 7,299.66387170553)
+{p 0 6 2}note: {bf:4.educ#2014.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2014.year} omitted because of collinearity.{p_end}
+
+Linear regression                               Number of obs     = {res}     7,039
+                                                {txt}F(30, 7008)       =  {res}    71.78
+                                                {txt}Prob > F          = {res}    0.0000
+                                                {txt}R-squared         = {res}    0.3017
+                                                {txt}Root MSE          =    {res} .66409
+
+{txt}{hline 13}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 14}{c |}{col 26}    Robust
+{col 1}      ln_inc{col 14}{c |} Coefficient{col 26}  std. err.{col 38}      t{col 46}   P>|t|{col 54}     [95% con{col 67}f. interval]
+{hline 13}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 9}age {c |}{col 14}{res}{space 2} .0171677{col 26}{space 2} .0013299{col 37}{space 1}   12.91{col 46}{space 3}0.000{col 54}{space 4} .0145607{col 67}{space 3} .0197747
+{txt}{space 4}2.gender {c |}{col 14}{res}{space 2}-.1175222{col 26}{space 2} .0295099{col 37}{space 1}   -3.98{col 46}{space 3}0.000{col 54}{space 4}-.1753706{col 67}{space 3}-.0596738
+{txt}{space 12} {c |}
+{space 8}educ {c |}
+{space 10}2  {c |}{col 14}{res}{space 2} .2539007{col 26}{space 2} .0447284{col 37}{space 1}    5.68{col 46}{space 3}0.000{col 54}{space 4} .1662195{col 67}{space 3} .3415819
+{txt}{space 10}3  {c |}{col 14}{res}{space 2} .6320696{col 26}{space 2} .0429614{col 37}{space 1}   14.71{col 46}{space 3}0.000{col 54}{space 4} .5478523{col 67}{space 3}  .716287
+{txt}{space 10}4  {c |}{col 14}{res}{space 2} 1.141133{col 26}{space 2} .0763421{col 37}{space 1}   14.95{col 46}{space 3}0.000{col 54}{space 4}  .991479{col 67}{space 3} 1.290786
+{txt}{space 12} {c |}
+{space 2}hhold_size {c |}{col 14}{res}{space 2} .1614277{col 26}{space 2}  .007932{col 37}{space 1}   20.35{col 46}{space 3}0.000{col 54}{space 4} .1458787{col 67}{space 3} .1769768
+{txt}{space 12} {c |}
+{space 6}region {c |}
+{space 10}2  {c |}{col 14}{res}{space 2} .1908828{col 26}{space 2} .1350648{col 37}{space 1}    1.41{col 46}{space 3}0.158{col 54}{space 4}-.0738851{col 67}{space 3} .4556506
+{txt}{space 10}3  {c |}{col 14}{res}{space 2} .2097265{col 26}{space 2} .0658046{col 37}{space 1}    3.19{col 46}{space 3}0.001{col 54}{space 4} .0807296{col 67}{space 3} .3387235
+{txt}{space 10}4  {c |}{col 14}{res}{space 2} .0792655{col 26}{space 2} .0930934{col 37}{space 1}    0.85{col 46}{space 3}0.395{col 54}{space 4}-.1032257{col 67}{space 3} .2617566
+{txt}{space 10}5  {c |}{col 14}{res}{space 2} .0459634{col 26}{space 2} .0686447{col 37}{space 1}    0.67{col 46}{space 3}0.503{col 54}{space 4} -.088601{col 67}{space 3} .1805278
+{txt}{space 10}6  {c |}{col 14}{res}{space 2} .1375454{col 26}{space 2} .0773761{col 37}{space 1}    1.78{col 46}{space 3}0.076{col 54}{space 4}-.0141352{col 67}{space 3} .2892261
+{txt}{space 10}7  {c |}{col 14}{res}{space 2}  .158011{col 26}{space 2} .0717641{col 37}{space 1}    2.20{col 46}{space 3}0.028{col 54}{space 4} .0173318{col 67}{space 3} .2986903
+{txt}{space 10}8  {c |}{col 14}{res}{space 2} .1287619{col 26}{space 2} .0686521{col 37}{space 1}    1.88{col 46}{space 3}0.061{col 54}{space 4}-.0058169{col 67}{space 3} .2633407
+{txt}{space 10}9  {c |}{col 14}{res}{space 2} .1500803{col 26}{space 2} .0715178{col 37}{space 1}    2.10{col 46}{space 3}0.036{col 54}{space 4} .0098839{col 67}{space 3} .2902768
+{txt}{space 9}10  {c |}{col 14}{res}{space 2} .0329122{col 26}{space 2} .0770367{col 37}{space 1}    0.43{col 46}{space 3}0.669{col 54}{space 4} -.118103{col 67}{space 3} .1839274
+{txt}{space 9}11  {c |}{col 14}{res}{space 2} .0857244{col 26}{space 2} .0781211{col 37}{space 1}    1.10{col 46}{space 3}0.273{col 54}{space 4}-.0674166{col 67}{space 3} .2388655
+{txt}{space 9}12  {c |}{col 14}{res}{space 2} .0449547{col 26}{space 2} .0778494{col 37}{space 1}    0.58{col 46}{space 3}0.564{col 54}{space 4}-.1076537{col 67}{space 3}  .197563
+{txt}{space 9}13  {c |}{col 14}{res}{space 2} .0004726{col 26}{space 2} .0855694{col 37}{space 1}    0.01{col 46}{space 3}0.996{col 54}{space 4}-.1672694{col 67}{space 3} .1682146
+{txt}{space 9}14  {c |}{col 14}{res}{space 2}-.1012059{col 26}{space 2}   .10735{col 37}{space 1}   -0.94{col 46}{space 3}0.346{col 54}{space 4}-.3116443{col 67}{space 3} .1092325
+{txt}{space 9}15  {c |}{col 14}{res}{space 2} -.482593{col 26}{space 2} .0744131{col 37}{space 1}   -6.49{col 46}{space 3}0.000{col 54}{space 4}-.6284651{col 67}{space 3}-.3367208
+{txt}{space 9}16  {c |}{col 14}{res}{space 2}-.2294042{col 26}{space 2} .0739632{col 37}{space 1}   -3.10{col 46}{space 3}0.002{col 54}{space 4}-.3743945{col 67}{space 3}-.0844138
+{txt}{space 9}17  {c |}{col 14}{res}{space 2}-.3064153{col 26}{space 2} .1293994{col 37}{space 1}   -2.37{col 46}{space 3}0.018{col 54}{space 4}-.5600774{col 67}{space 3}-.0527533
+{txt}{space 9}18  {c |}{col 14}{res}{space 2}-.3254639{col 26}{space 2} .0798308{col 37}{space 1}   -4.08{col 46}{space 3}0.000{col 54}{space 4}-.4819564{col 67}{space 3}-.1689714
+{txt}{space 9}19  {c |}{col 14}{res}{space 2}-.3797118{col 26}{space 2} .0708927{col 37}{space 1}   -5.36{col 46}{space 3}0.000{col 54}{space 4} -.518683{col 67}{space 3}-.2407407
+{txt}{space 9}20  {c |}{col 14}{res}{space 2}-.1259152{col 26}{space 2} .0847315{col 37}{space 1}   -1.49{col 46}{space 3}0.137{col 54}{space 4}-.2920146{col 67}{space 3} .0401841
+{txt}{space 12} {c |}
+{space 3}educ#year {c |}
+{space 5}1 2014  {c |}{col 14}{res}{space 2}-.0135862{col 26}{space 2} .1447287{col 37}{space 1}   -0.09{col 46}{space 3}0.925{col 54}{space 4}-.2972982{col 67}{space 3} .2701258
+{txt}{space 5}2 2014  {c |}{col 14}{res}{space 2} .0569065{col 26}{space 2} .1254112{col 37}{space 1}    0.45{col 46}{space 3}0.650{col 54}{space 4}-.1889374{col 67}{space 3} .3027503
+{txt}{space 5}3 2014  {c |}{col 14}{res}{space 2} .1194296{col 26}{space 2} .1234524{col 37}{space 1}    0.97{col 46}{space 3}0.333{col 54}{space 4}-.1225745{col 67}{space 3} .3614337
+{txt}{space 5}4 2014  {c |}{col 14}{res}{space 2}        0{col 26}{txt}  (omitted)
+{space 12} {c |}
+{space 1}gender#year {c |}
+{space 5}1 2014  {c |}{col 14}{res}{space 2} .0056236{col 26}{space 2} .0457391{col 37}{space 1}    0.12{col 46}{space 3}0.902{col 54}{space 4}-.0840388{col 67}{space 3}  .095286
+{txt}{space 5}2 2014  {c |}{col 14}{res}{space 2}        0{col 26}{txt}  (omitted)
+{space 12} {c |}
+{space 8}year {c |}{col 14}{res}{space 2}-.0527578{col 26}{space 2} .0157976{col 37}{space 1}   -3.34{col 46}{space 3}0.001{col 54}{space 4}-.0837258{col 67}{space 3}-.0217897
+{txt}{space 7}_cons {c |}{col 14}{res}{space 2} 114.6184{col 26}{space 2}   31.683{col 37}{space 1}    3.62{col 46}{space 3}0.000{col 54}{space 4} 52.51017{col 67}{space 3} 176.7267
+{txt}{hline 13}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}{txt}(sum of wgt is 7,299.66387170553)
+{p 0 6 2}note: {bf:4.educ#2014.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2014.year} omitted because of collinearity.{p_end}
+
+Linear regression                               Number of obs     = {res}     7,039
+                                                {txt}F(30, 7008)       =  {res}    83.73
+                                                {txt}Prob > F          = {res}    0.0000
+                                                {txt}R-squared         = {res}    0.4002
+                                                {txt}Root MSE          =    {res} .38673
+
+{txt}{hline 13}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 14}{c |}{col 26}    Robust
+{col 1}  ln_consump{col 14}{c |} Coefficient{col 26}  std. err.{col 38}      t{col 46}   P>|t|{col 54}     [95% con{col 67}f. interval]
+{hline 13}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 9}age {c |}{col 14}{res}{space 2} .0114041{col 26}{space 2} .0007168{col 37}{space 1}   15.91{col 46}{space 3}0.000{col 54}{space 4} .0099989{col 67}{space 3} .0128093
+{txt}{space 4}2.gender {c |}{col 14}{res}{space 2}-.0721129{col 26}{space 2} .0175016{col 37}{space 1}   -4.12{col 46}{space 3}0.000{col 54}{space 4}-.1064214{col 67}{space 3}-.0378045
+{txt}{space 12} {c |}
+{space 8}educ {c |}
+{space 10}2  {c |}{col 14}{res}{space 2} .1863272{col 26}{space 2} .0281912{col 37}{space 1}    6.61{col 46}{space 3}0.000{col 54}{space 4} .1310639{col 67}{space 3} .2415905
+{txt}{space 10}3  {c |}{col 14}{res}{space 2}   .45908{col 26}{space 2}  .028307{col 37}{space 1}   16.22{col 46}{space 3}0.000{col 54}{space 4} .4035898{col 67}{space 3} .5145702
+{txt}{space 10}4  {c |}{col 14}{res}{space 2} .8924584{col 26}{space 2} .0901891{col 37}{space 1}    9.90{col 46}{space 3}0.000{col 54}{space 4} .7156605{col 67}{space 3} 1.069256
+{txt}{space 12} {c |}
+{space 2}hhold_size {c |}{col 14}{res}{space 2} .1312765{col 26}{space 2}  .005239{col 37}{space 1}   25.06{col 46}{space 3}0.000{col 54}{space 4} .1210064{col 67}{space 3} .1415466
+{txt}{space 12} {c |}
+{space 6}region {c |}
+{space 10}2  {c |}{col 14}{res}{space 2} .0326595{col 26}{space 2} .1015309{col 37}{space 1}    0.32{col 46}{space 3}0.748{col 54}{space 4}-.1663717{col 67}{space 3} .2316908
+{txt}{space 10}3  {c |}{col 14}{res}{space 2} .0843196{col 26}{space 2} .0261551{col 37}{space 1}    3.22{col 46}{space 3}0.001{col 54}{space 4} .0330476{col 67}{space 3} .1355915
+{txt}{space 10}4  {c |}{col 14}{res}{space 2}-.0929402{col 26}{space 2} .0385377{col 37}{space 1}   -2.41{col 46}{space 3}0.016{col 54}{space 4}-.1684857{col 67}{space 3}-.0173947
+{txt}{space 10}5  {c |}{col 14}{res}{space 2}  -.07995{col 26}{space 2} .0290986{col 37}{space 1}   -2.75{col 46}{space 3}0.006{col 54}{space 4}-.1369921{col 67}{space 3} -.022908
+{txt}{space 10}6  {c |}{col 14}{res}{space 2} -.000686{col 26}{space 2} .0359319{col 37}{space 1}   -0.02{col 46}{space 3}0.985{col 54}{space 4}-.0711233{col 67}{space 3} .0697513
+{txt}{space 10}7  {c |}{col 14}{res}{space 2} .0240206{col 26}{space 2}  .028569{col 37}{space 1}    0.84{col 46}{space 3}0.400{col 54}{space 4}-.0319833{col 67}{space 3} .0800245
+{txt}{space 10}8  {c |}{col 14}{res}{space 2} .0045071{col 26}{space 2} .0255772{col 37}{space 1}    0.18{col 46}{space 3}0.860{col 54}{space 4} -.045632{col 67}{space 3} .0546462
+{txt}{space 10}9  {c |}{col 14}{res}{space 2} .0480111{col 26}{space 2} .0270818{col 37}{space 1}    1.77{col 46}{space 3}0.076{col 54}{space 4}-.0050774{col 67}{space 3} .1010995
+{txt}{space 9}10  {c |}{col 14}{res}{space 2}-.0337749{col 26}{space 2} .0387685{col 37}{space 1}   -0.87{col 46}{space 3}0.384{col 54}{space 4} -.109773{col 67}{space 3} .0422232
+{txt}{space 9}11  {c |}{col 14}{res}{space 2}-.0289743{col 26}{space 2} .0373989{col 37}{space 1}   -0.77{col 46}{space 3}0.439{col 54}{space 4}-.1022874{col 67}{space 3} .0443389
+{txt}{space 9}12  {c |}{col 14}{res}{space 2}  .052306{col 26}{space 2} .0345361{col 37}{space 1}    1.51{col 46}{space 3}0.130{col 54}{space 4}-.0153952{col 67}{space 3} .1200073
+{txt}{space 9}13  {c |}{col 14}{res}{space 2}-.1000756{col 26}{space 2} .0431476{col 37}{space 1}   -2.32{col 46}{space 3}0.020{col 54}{space 4}-.1846579{col 67}{space 3}-.0154933
+{txt}{space 9}14  {c |}{col 14}{res}{space 2}-.1130504{col 26}{space 2} .0483641{col 37}{space 1}   -2.34{col 46}{space 3}0.019{col 54}{space 4}-.2078587{col 67}{space 3}-.0182422
+{txt}{space 9}15  {c |}{col 14}{res}{space 2}-.3422516{col 26}{space 2}  .026947{col 37}{space 1}  -12.70{col 46}{space 3}0.000{col 54}{space 4} -.395076{col 67}{space 3}-.2894273
+{txt}{space 9}16  {c |}{col 14}{res}{space 2}-.2287244{col 26}{space 2} .0325226{col 37}{space 1}   -7.03{col 46}{space 3}0.000{col 54}{space 4}-.2924786{col 67}{space 3}-.1649702
+{txt}{space 9}17  {c |}{col 14}{res}{space 2}-.2951241{col 26}{space 2} .0699617{col 37}{space 1}   -4.22{col 46}{space 3}0.000{col 54}{space 4}-.4322703{col 67}{space 3} -.157978
+{txt}{space 9}18  {c |}{col 14}{res}{space 2}-.3018176{col 26}{space 2}  .046362{col 37}{space 1}   -6.51{col 46}{space 3}0.000{col 54}{space 4}-.3927011{col 67}{space 3}-.2109341
+{txt}{space 9}19  {c |}{col 14}{res}{space 2}-.3235155{col 26}{space 2} .0308921{col 37}{space 1}  -10.47{col 46}{space 3}0.000{col 54}{space 4}-.3840733{col 67}{space 3}-.2629577
+{txt}{space 9}20  {c |}{col 14}{res}{space 2}-.1248004{col 26}{space 2} .0430894{col 37}{space 1}   -2.90{col 46}{space 3}0.004{col 54}{space 4}-.2092687{col 67}{space 3}-.0403321
+{txt}{space 12} {c |}
+{space 3}educ#year {c |}
+{space 5}1 2014  {c |}{col 14}{res}{space 2} .1275143{col 26}{space 2}  .113113{col 37}{space 1}    1.13{col 46}{space 3}0.260{col 54}{space 4}-.0942213{col 67}{space 3} .3492499
+{txt}{space 5}2 2014  {c |}{col 14}{res}{space 2} .1580439{col 26}{space 2} .1047046{col 37}{space 1}    1.51{col 46}{space 3}0.131{col 54}{space 4}-.0472088{col 67}{space 3} .3632966
+{txt}{space 5}3 2014  {c |}{col 14}{res}{space 2} .1826816{col 26}{space 2}  .104661{col 37}{space 1}    1.75{col 46}{space 3}0.081{col 54}{space 4}-.0224856{col 67}{space 3} .3878489
+{txt}{space 5}4 2014  {c |}{col 14}{res}{space 2}        0{col 26}{txt}  (omitted)
+{space 12} {c |}
+{space 1}gender#year {c |}
+{space 5}1 2014  {c |}{col 14}{res}{space 2}-.0182101{col 26}{space 2} .0254188{col 37}{space 1}   -0.72{col 46}{space 3}0.474{col 54}{space 4}-.0680387{col 67}{space 3} .0316185
+{txt}{space 5}2 2014  {c |}{col 14}{res}{space 2}        0{col 26}{txt}  (omitted)
+{space 12} {c |}
+{space 8}year {c |}{col 14}{res}{space 2}-.0526598{col 26}{space 2} .0131023{col 37}{space 1}   -4.02{col 46}{space 3}0.000{col 54}{space 4}-.0783442{col 67}{space 3}-.0269754
+{txt}{space 7}_cons {c |}{col 14}{res}{space 2} 114.6616{col 26}{space 2} 26.28303{col 37}{space 1}    4.36{col 46}{space 3}0.000{col 54}{space 4} 63.13888{col 67}{space 3} 166.1843
+{txt}{hline 13}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_income {c |}{res}      3,664    1.126661    .6211171   .0004456   13.55451
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 4}income_2 {c |}{res}      3,664    39521.65    28394.27   13.61859   752366.4
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_income {c |}{res}      3,375    1.218734    .6635967   .0001893   6.493266
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 4}income_2 {c |}{res}      3,375    31917.81    21697.07   3.069445     198302
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_cons~p {c |}{res}      3,664    1.069544    .4401437   .0934344   7.926198
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_cons~p {c |}{res}      3,375    1.107032    .4884008   .1154388   6.514928
+{txt}(35 observations deleted)
+(0 observations deleted)
+(224 observations deleted)
+(249 observations deleted)
+(34,670 observations deleted)
+(6,424 missing values generated)
+(2,967 real changes made)
+(3,383 real changes made)
+(74 real changes made)
+(3,657 real changes made)
+(3,657 real changes made)
+(3,367 real changes made)
+(3,367 real changes made)
+(sum of wgt is 7,277.10566484928)
+{p 0 6 2}note: {bf:4.educ#2014.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2014.year} omitted because of collinearity.{p_end}
+
+Linear regression                               Number of obs     = {res}     7,024
+                                                {txt}F(30, 6993)       =  {res}    76.80
+                                                {txt}Prob > F          = {res}    0.0000
+                                                {txt}R-squared         = {res}    0.3595
+                                                {txt}Root MSE          =    {res} .56885
+
+{txt}{hline 13}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 14}{c |}{col 26}    Robust
+{col 1}      ln_inc{col 14}{c |} Coefficient{col 26}  std. err.{col 38}      t{col 46}   P>|t|{col 54}     [95% con{col 67}f. interval]
+{hline 13}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 9}age {c |}{col 14}{res}{space 2} .0164497{col 26}{space 2} .0010895{col 37}{space 1}   15.10{col 46}{space 3}0.000{col 54}{space 4}  .014314{col 67}{space 3} .0185855
+{txt}{space 4}2.gender {c |}{col 14}{res}{space 2}-.1190007{col 26}{space 2} .0250197{col 37}{space 1}   -4.76{col 46}{space 3}0.000{col 54}{space 4}-.1680468{col 67}{space 3}-.0699545
+{txt}{space 12} {c |}
+{space 8}educ {c |}
+{space 10}2  {c |}{col 14}{res}{space 2} .2471966{col 26}{space 2} .0380341{col 37}{space 1}    6.50{col 46}{space 3}0.000{col 54}{space 4} .1726382{col 67}{space 3} .3217551
+{txt}{space 10}3  {c |}{col 14}{res}{space 2} .6050186{col 26}{space 2} .0375717{col 37}{space 1}   16.10{col 46}{space 3}0.000{col 54}{space 4} .5313666{col 67}{space 3} .6786705
+{txt}{space 10}4  {c |}{col 14}{res}{space 2} 1.131981{col 26}{space 2} .0849213{col 37}{space 1}   13.33{col 46}{space 3}0.000{col 54}{space 4} .9655095{col 67}{space 3} 1.298453
+{txt}{space 12} {c |}
+{space 2}hhold_size {c |}{col 14}{res}{space 2} .1609117{col 26}{space 2} .0074513{col 37}{space 1}   21.60{col 46}{space 3}0.000{col 54}{space 4} .1463049{col 67}{space 3} .1755185
+{txt}{space 12} {c |}
+{space 6}region {c |}
+{space 10}2  {c |}{col 14}{res}{space 2}  .076722{col 26}{space 2}   .12071{col 37}{space 1}    0.64{col 46}{space 3}0.525{col 54}{space 4}-.1599062{col 67}{space 3} .3133503
+{txt}{space 10}3  {c |}{col 14}{res}{space 2} .1391554{col 26}{space 2} .0387981{col 37}{space 1}    3.59{col 46}{space 3}0.000{col 54}{space 4} .0630994{col 67}{space 3} .2152115
+{txt}{space 10}4  {c |}{col 14}{res}{space 2}-.0223307{col 26}{space 2} .0771982{col 37}{space 1}   -0.29{col 46}{space 3}0.772{col 54}{space 4}-.1736627{col 67}{space 3} .1290012
+{txt}{space 10}5  {c |}{col 14}{res}{space 2}-.0274243{col 26}{space 2} .0437264{col 37}{space 1}   -0.63{col 46}{space 3}0.531{col 54}{space 4}-.1131413{col 67}{space 3} .0582928
+{txt}{space 10}6  {c |}{col 14}{res}{space 2} .0489081{col 26}{space 2} .0566282{col 37}{space 1}    0.86{col 46}{space 3}0.388{col 54}{space 4}-.0621003{col 67}{space 3} .1599165
+{txt}{space 10}7  {c |}{col 14}{res}{space 2} .0888348{col 26}{space 2} .0430701{col 37}{space 1}    2.06{col 46}{space 3}0.039{col 54}{space 4} .0044044{col 67}{space 3} .1732651
+{txt}{space 10}8  {c |}{col 14}{res}{space 2} .0756392{col 26}{space 2} .0419986{col 37}{space 1}    1.80{col 46}{space 3}0.072{col 54}{space 4}-.0066909{col 67}{space 3} .1579692
+{txt}{space 10}9  {c |}{col 14}{res}{space 2} .0994258{col 26}{space 2} .0432006{col 37}{space 1}    2.30{col 46}{space 3}0.021{col 54}{space 4} .0147395{col 67}{space 3} .1841121
+{txt}{space 9}10  {c |}{col 14}{res}{space 2}-.0477503{col 26}{space 2} .0559516{col 37}{space 1}   -0.85{col 46}{space 3}0.393{col 54}{space 4}-.1574323{col 67}{space 3} .0619318
+{txt}{space 9}11  {c |}{col 14}{res}{space 2} .0081532{col 26}{space 2} .0546835{col 37}{space 1}    0.15{col 46}{space 3}0.881{col 54}{space 4}-.0990431{col 67}{space 3} .1153495
+{txt}{space 9}12  {c |}{col 14}{res}{space 2}-.0101205{col 26}{space 2} .0522962{col 37}{space 1}   -0.19{col 46}{space 3}0.847{col 54}{space 4}-.1126368{col 67}{space 3} .0923959
+{txt}{space 9}13  {c |}{col 14}{res}{space 2}-.0728185{col 26}{space 2} .0649476{col 37}{space 1}   -1.12{col 46}{space 3}0.262{col 54}{space 4}-.2001354{col 67}{space 3} .0544985
+{txt}{space 9}14  {c |}{col 14}{res}{space 2}-.2136115{col 26}{space 2} .0926564{col 37}{space 1}   -2.31{col 46}{space 3}0.021{col 54}{space 4}-.3952461{col 67}{space 3} -.031977
+{txt}{space 9}15  {c |}{col 14}{res}{space 2}-.5487045{col 26}{space 2} .0490067{col 37}{space 1}  -11.20{col 46}{space 3}0.000{col 54}{space 4}-.6447725{col 67}{space 3}-.4526364
+{txt}{space 9}16  {c |}{col 14}{res}{space 2}-.2870283{col 26}{space 2} .0497497{col 37}{space 1}   -5.77{col 46}{space 3}0.000{col 54}{space 4}-.3845529{col 67}{space 3}-.1895037
+{txt}{space 9}17  {c |}{col 14}{res}{space 2}-.4130286{col 26}{space 2} .1204086{col 37}{space 1}   -3.43{col 46}{space 3}0.001{col 54}{space 4} -.649066{col 67}{space 3}-.1769912
+{txt}{space 9}18  {c |}{col 14}{res}{space 2}-.4060204{col 26}{space 2} .0603055{col 37}{space 1}   -6.73{col 46}{space 3}0.000{col 54}{space 4}-.5242374{col 67}{space 3}-.2878033
+{txt}{space 9}19  {c |}{col 14}{res}{space 2}-.4464882{col 26}{space 2} .0462458{col 37}{space 1}   -9.65{col 46}{space 3}0.000{col 54}{space 4}-.5371439{col 67}{space 3}-.3558325
+{txt}{space 9}20  {c |}{col 14}{res}{space 2}-.1813706{col 26}{space 2} .0627085{col 37}{space 1}   -2.89{col 46}{space 3}0.004{col 54}{space 4}-.3042983{col 67}{space 3}-.0584428
+{txt}{space 12} {c |}
+{space 3}educ#year {c |}
+{space 5}1 2014  {c |}{col 14}{res}{space 2}-.0116746{col 26}{space 2} .1516685{col 37}{space 1}   -0.08{col 46}{space 3}0.939{col 54}{space 4}-.3089908{col 67}{space 3} .2856416
+{txt}{space 5}2 2014  {c |}{col 14}{res}{space 2} .1121113{col 26}{space 2} .1328231{col 37}{space 1}    0.84{col 46}{space 3}0.399{col 54}{space 4}-.1482622{col 67}{space 3} .3724848
+{txt}{space 5}3 2014  {c |}{col 14}{res}{space 2}  .175742{col 26}{space 2} .1323753{col 37}{space 1}    1.33{col 46}{space 3}0.184{col 54}{space 4}-.0837537{col 67}{space 3} .4352377
+{txt}{space 5}4 2014  {c |}{col 14}{res}{space 2}        0{col 26}{txt}  (omitted)
+{space 12} {c |}
+{space 1}gender#year {c |}
+{space 5}1 2014  {c |}{col 14}{res}{space 2}-.0161787{col 26}{space 2} .0380221{col 37}{space 1}   -0.43{col 46}{space 3}0.670{col 54}{space 4}-.0907135{col 67}{space 3} .0583562
+{txt}{space 5}2 2014  {c |}{col 14}{res}{space 2}        0{col 26}{txt}  (omitted)
+{space 12} {c |}
+{space 8}year {c |}{col 14}{res}{space 2}-.0547366{col 26}{space 2} .0168114{col 37}{space 1}   -3.26{col 46}{space 3}0.001{col 54}{space 4}-.0876919{col 67}{space 3}-.0217812
+{txt}{space 7}_cons {c |}{col 14}{res}{space 2} 118.7405{col 26}{space 2} 33.71822{col 37}{space 1}    3.52{col 46}{space 3}0.000{col 54}{space 4} 52.64257{col 67}{space 3} 184.8385
+{txt}{hline 13}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}{txt}(sum of wgt is 7,277.10566484928)
+{p 0 6 2}note: {bf:4.educ#2014.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2014.year} omitted because of collinearity.{p_end}
+
+Linear regression                               Number of obs     = {res}     7,024
+                                                {txt}F(30, 6993)       =  {res}    82.99
+                                                {txt}Prob > F          = {res}    0.0000
+                                                {txt}R-squared         = {res}    0.3996
+                                                {txt}Root MSE          =    {res} .38646
+
+{txt}{hline 13}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 14}{c |}{col 26}    Robust
+{col 1}  ln_consump{col 14}{c |} Coefficient{col 26}  std. err.{col 38}      t{col 46}   P>|t|{col 54}     [95% con{col 67}f. interval]
+{hline 13}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 9}age {c |}{col 14}{res}{space 2} .0114843{col 26}{space 2} .0007171{col 37}{space 1}   16.02{col 46}{space 3}0.000{col 54}{space 4} .0100786{col 67}{space 3}   .01289
+{txt}{space 4}2.gender {c |}{col 14}{res}{space 2}-.0724002{col 26}{space 2} .0175513{col 37}{space 1}   -4.13{col 46}{space 3}0.000{col 54}{space 4}-.1068061{col 67}{space 3}-.0379944
+{txt}{space 12} {c |}
+{space 8}educ {c |}
+{space 10}2  {c |}{col 14}{res}{space 2} .1858108{col 26}{space 2} .0282543{col 37}{space 1}    6.58{col 46}{space 3}0.000{col 54}{space 4} .1304239{col 67}{space 3} .2411977
+{txt}{space 10}3  {c |}{col 14}{res}{space 2} .4581209{col 26}{space 2} .0283662{col 37}{space 1}   16.15{col 46}{space 3}0.000{col 54}{space 4} .4025145{col 67}{space 3} .5137273
+{txt}{space 10}4  {c |}{col 14}{res}{space 2} .8922469{col 26}{space 2} .0903757{col 37}{space 1}    9.87{col 46}{space 3}0.000{col 54}{space 4} .7150831{col 67}{space 3} 1.069411
+{txt}{space 12} {c |}
+{space 2}hhold_size {c |}{col 14}{res}{space 2} .1308632{col 26}{space 2} .0052454{col 37}{space 1}   24.95{col 46}{space 3}0.000{col 54}{space 4} .1205805{col 67}{space 3} .1411459
+{txt}{space 12} {c |}
+{space 6}region {c |}
+{space 10}2  {c |}{col 14}{res}{space 2} .0249773{col 26}{space 2} .1014468{col 37}{space 1}    0.25{col 46}{space 3}0.806{col 54}{space 4}-.1738891{col 67}{space 3} .2238437
+{txt}{space 10}3  {c |}{col 14}{res}{space 2} .0762153{col 26}{space 2}  .025694{col 37}{space 1}    2.97{col 46}{space 3}0.003{col 54}{space 4} .0258473{col 67}{space 3} .1265833
+{txt}{space 10}4  {c |}{col 14}{res}{space 2} -.100547{col 26}{space 2} .0381622{col 37}{space 1}   -2.63{col 46}{space 3}0.008{col 54}{space 4}-.1753565{col 67}{space 3}-.0257375
+{txt}{space 10}5  {c |}{col 14}{res}{space 2}-.0878517{col 26}{space 2} .0287238{col 37}{space 1}   -3.06{col 46}{space 3}0.002{col 54}{space 4}-.1441591{col 67}{space 3}-.0315443
+{txt}{space 10}6  {c |}{col 14}{res}{space 2}-.0081212{col 26}{space 2} .0355638{col 37}{space 1}   -0.23{col 46}{space 3}0.819{col 54}{space 4}-.0778371{col 67}{space 3} .0615946
+{txt}{space 10}7  {c |}{col 14}{res}{space 2} .0190294{col 26}{space 2} .0280792{col 37}{space 1}    0.68{col 46}{space 3}0.498{col 54}{space 4}-.0360144{col 67}{space 3} .0740732
+{txt}{space 10}8  {c |}{col 14}{res}{space 2}-.0014406{col 26}{space 2} .0250696{col 37}{space 1}   -0.06{col 46}{space 3}0.954{col 54}{space 4}-.0505847{col 67}{space 3} .0477034
+{txt}{space 10}9  {c |}{col 14}{res}{space 2}  .040725{col 26}{space 2} .0266162{col 37}{space 1}    1.53{col 46}{space 3}0.126{col 54}{space 4}-.0114508{col 67}{space 3} .0929009
+{txt}{space 9}10  {c |}{col 14}{res}{space 2} -.041114{col 26}{space 2} .0384185{col 37}{space 1}   -1.07{col 46}{space 3}0.285{col 54}{space 4}-.1164259{col 67}{space 3}  .034198
+{txt}{space 9}11  {c |}{col 14}{res}{space 2}-.0323613{col 26}{space 2} .0370514{col 37}{space 1}   -0.87{col 46}{space 3}0.382{col 54}{space 4}-.1049934{col 67}{space 3} .0402708
+{txt}{space 9}12  {c |}{col 14}{res}{space 2} .0460415{col 26}{space 2} .0342516{col 37}{space 1}    1.34{col 46}{space 3}0.179{col 54}{space 4} -.021102{col 67}{space 3}  .113185
+{txt}{space 9}13  {c |}{col 14}{res}{space 2} -.107574{col 26}{space 2} .0428625{col 37}{space 1}   -2.51{col 46}{space 3}0.012{col 54}{space 4}-.1915976{col 67}{space 3}-.0235504
+{txt}{space 9}14  {c |}{col 14}{res}{space 2}-.1204836{col 26}{space 2} .0480203{col 37}{space 1}   -2.51{col 46}{space 3}0.012{col 54}{space 4} -.214618{col 67}{space 3}-.0263492
+{txt}{space 9}15  {c |}{col 14}{res}{space 2}-.3497337{col 26}{space 2} .0265298{col 37}{space 1}  -13.18{col 46}{space 3}0.000{col 54}{space 4}  -.40174{col 67}{space 3}-.2977273
+{txt}{space 9}16  {c |}{col 14}{res}{space 2}-.2340042{col 26}{space 2} .0321497{col 37}{space 1}   -7.28{col 46}{space 3}0.000{col 54}{space 4}-.2970275{col 67}{space 3} -.170981
+{txt}{space 9}17  {c |}{col 14}{res}{space 2}-.3034581{col 26}{space 2} .0706318{col 37}{space 1}   -4.30{col 46}{space 3}0.000{col 54}{space 4}-.4419179{col 67}{space 3}-.1649983
+{txt}{space 9}18  {c |}{col 14}{res}{space 2}-.3090581{col 26}{space 2} .0460699{col 37}{space 1}   -6.71{col 46}{space 3}0.000{col 54}{space 4}-.3993691{col 67}{space 3}-.2187471
+{txt}{space 9}19  {c |}{col 14}{res}{space 2}-.3305266{col 26}{space 2} .0305033{col 37}{space 1}  -10.84{col 46}{space 3}0.000{col 54}{space 4}-.3903224{col 67}{space 3}-.2707308
+{txt}{space 9}20  {c |}{col 14}{res}{space 2}-.1323307{col 26}{space 2} .0427838{col 37}{space 1}   -3.09{col 46}{space 3}0.002{col 54}{space 4}-.2161999{col 67}{space 3}-.0484614
+{txt}{space 12} {c |}
+{space 3}educ#year {c |}
+{space 5}1 2014  {c |}{col 14}{res}{space 2} .1268221{col 26}{space 2} .1132848{col 37}{space 1}    1.12{col 46}{space 3}0.263{col 54}{space 4}-.0952505{col 67}{space 3} .3488947
+{txt}{space 5}2 2014  {c |}{col 14}{res}{space 2} .1612288{col 26}{space 2} .1048928{col 37}{space 1}    1.54{col 46}{space 3}0.124{col 54}{space 4}-.0443928{col 67}{space 3} .3668504
+{txt}{space 5}3 2014  {c |}{col 14}{res}{space 2}  .183699{col 26}{space 2} .1048631{col 37}{space 1}    1.75{col 46}{space 3}0.080{col 54}{space 4}-.0218645{col 67}{space 3} .3892626
+{txt}{space 5}4 2014  {c |}{col 14}{res}{space 2}        0{col 26}{txt}  (omitted)
+{space 12} {c |}
+{space 1}gender#year {c |}
+{space 5}1 2014  {c |}{col 14}{res}{space 2}-.0209315{col 26}{space 2} .0254288{col 37}{space 1}   -0.82{col 46}{space 3}0.410{col 54}{space 4}-.0707797{col 67}{space 3} .0289167
+{txt}{space 5}2 2014  {c |}{col 14}{res}{space 2}        0{col 26}{txt}  (omitted)
+{space 12} {c |}
+{space 8}year {c |}{col 14}{res}{space 2}-.0525385{col 26}{space 2}  .013128{col 37}{space 1}   -4.00{col 46}{space 3}0.000{col 54}{space 4}-.0782735{col 67}{space 3}-.0268036
+{txt}{space 7}_cons {c |}{col 14}{res}{space 2} 114.4234{col 26}{space 2} 26.33472{col 37}{space 1}    4.34{col 46}{space 3}0.000{col 54}{space 4} 62.79937{col 67}{space 3} 166.0474
+{txt}{hline 13}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_income {c |}{res}      3,657    1.110878    .5984949   .0081496   12.72472
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 4}income_3 {c |}{res}      3,657    40578.62    28522.95    150.463   754629.6
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_income {c |}{res}      3,367    1.191432    .6644279   .0149553    11.6019
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 4}income_3 {c |}{res}      3,367    33222.44    22727.35   250.2502   325825.8
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_cons~p {c |}{res}      3,657    1.069253    .4403393   .0933571    7.93343
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_cons~p {c |}{res}      3,367    1.105919    .4876329   .1143406   6.504097
+{txt}
+{com}. 
+{txt}end of do-file
+
+{com}. exit, clear

@@ -1,0 +1,99 @@
+{smcl}
+{txt}{sf}{ul off}{.-}
+      name:  {res}<unnamed>
+       {txt}log:  {res}C:\Users\g1ysl01\Documents\Arce_consumption\storico_stata\italy_results.smcl
+  {txt}log type:  {res}smcl
+ {txt}opened on:  {res}23 Sep 2021, 14:55:16
+{txt}
+{com}. 
+. use comp.dta
+{txt}
+{com}. 
+. merge 1:1 nquest anno using rfam.dta cons.dta
+{res}{err}invalid 'cons.dta' 
+{txt}{search r(198), local:r(198);}
+
+end of do-file
+
+{search r(198), local:r(198);}
+
+{com}. do "C:\Users\g1ysl01\AppData\Local\Temp\2\STDe1f78_000000.tmp"
+{txt}
+{com}. log using italy_results,replace
+{err}log file already open
+{txt}{search r(604), local:r(604);}
+
+end of do-file
+
+{search r(604), local:r(604);}
+
+{com}. do "C:\Users\g1ysl01\AppData\Local\Temp\2\STDe1f78_000000.tmp"
+{txt}
+{com}. //log using italy_results,replace
+. 
+. use comp.dta
+{txt}
+{com}. 
+. merge 1:1 nquest anno using rfam cons
+{res}{err}invalid 'cons' 
+{txt}{search r(198), local:r(198);}
+
+end of do-file
+
+{search r(198), local:r(198);}
+
+{com}. do "C:\Users\g1ysl01\AppData\Local\Temp\2\STDe1f78_000000.tmp"
+{txt}
+{com}. //log using italy_results,replace
+. 
+. use comp.dta
+{txt}
+{com}. 
+. merge 1:1 nquest anno using rfam 
+{res}{err}{p 0 4 2}
+variable{err}s{err} nquest
+anno
+do not uniquely identify observations in the
+master data
+{p_end}
+{txt}{search r(459), local:r(459);}
+
+end of do-file
+
+{search r(459), local:r(459);}
+
+{com}. do "C:\Users\g1ysl01\AppData\Local\Temp\2\STDe1f78_000000.tmp"
+{txt}
+{com}. //log using italy_results,replace
+. 
+. use comp.dta
+{txt}
+{com}. 
+. drop if nord != 1
+{txt}(284,340 observations deleted)
+
+{com}. 
+. merge 1:1 nquest anno using rfam 
+{res}
+{txt}{col 5}Result{col 33}Number of obs
+{col 5}{hline 41}
+{col 5}Not matched{col 30}{res}               0
+{txt}{col 5}Matched{col 30}{res}         154,792{txt}  (_merge==3)
+{col 5}{hline 41}
+
+{com}. 
+{txt}end of do-file
+
+{com}. do "C:\Users\g1ysl01\AppData\Local\Temp\2\STDe1f78_000000.tmp"
+{txt}
+{com}. //log using italy_results,replace
+. 
+. use comp.dta
+{err}no; dataset in memory has changed since last saved
+{txt}{search r(4), local:r(4);}
+
+end of do-file
+
+{search r(4), local:r(4);}
+
+{com}. exit, clear

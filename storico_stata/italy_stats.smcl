@@ -1,0 +1,1045 @@
+{smcl}
+{com}{sf}{ul off}{txt}{.-}
+      name:  {res}<unnamed>
+       {txt}log:  {res}C:\Users\g1ysl01\Documents\Arce_consumption\storico_stata\italy_stats.smcl
+  {txt}log type:  {res}smcl
+ {txt}opened on:  {res}25 Oct 2021, 11:26:28
+{txt}
+{com}. 
+. //Merge data
+. use comp.dta
+{txt}
+{com}. drop if nord != 1
+{txt}(284,340 observations deleted)
+
+{com}. merge 1:1 nquest anno using rfam
+{res}
+{txt}{col 5}Result{col 33}Number of obs
+{col 5}{hline 41}
+{col 5}Not matched{col 30}{res}               0
+{txt}{col 5}Matched{col 30}{res}         154,792{txt}  (_merge==3)
+{col 5}{hline 41}
+
+{com}. drop _merge
+{txt}
+{com}. merge 1:1 nquest anno using cons
+{res}
+{txt}{col 5}Result{col 33}Number of obs
+{col 5}{hline 41}
+{col 5}Not matched{col 30}{res}               0
+{txt}{col 5}Matched{col 30}{res}         154,792{txt}  (_merge==3)
+{col 5}{hline 41}
+
+{com}. drop _merge
+{txt}
+{com}. merge 1:1 nquest anno using peso
+{res}
+{txt}{col 5}Result{col 33}Number of obs
+{col 5}{hline 41}
+{col 5}Not matched{col 30}{res}               0
+{txt}{col 5}Matched{col 30}{res}         154,792{txt}  (_merge==3)
+{col 5}{hline 41}
+
+{com}. 
+. //Rename colsrename anno year
+. rename eta age
+{res}{txt}
+{com}. rename ncomp hhold_size
+{res}{txt}
+{com}. rename sesso gender
+{res}{txt}
+{com}. rename ireg region 
+{res}{txt}
+{com}. rename anno year
+{res}{txt}
+{com}. rename peso weight
+{res}{txt}
+{com}. 
+. keep nquest year age hhold_size gender region weight y1 cn acom5 studio
+{txt}
+{com}. 
+. 
+. //Drop data before 1995, n=86729
+. drop if year < 1995
+{txt}(68,063 observations deleted)
+
+{com}. 
+. //Drop if residing in a small location n=75977
+. drop if acom5 == 1
+{txt}(10,752 observations deleted)
+
+{com}. 
+. //Drop if age of household head outside [25,60] n=42202
+. drop if age<25
+{txt}(541 observations deleted)
+
+{com}. drop if age>60
+{txt}(33,234 observations deleted)
+
+{com}. 
+. //Create consumption and income cols as in paper
+. gen income = y1
+{txt}
+{com}. gen consumption = cn
+{txt}
+{com}. 
+. //Drop if negative income/consumption
+. drop if income<0
+{txt}(35 observations deleted)
+
+{com}. drop if consumption < 0
+{txt}(0 observations deleted)
+
+{com}. 
+. //Define income to consumption ration
+. gen inc_cons_ratio = income/consumption
+{txt}
+{com}. 
+. //gen cutoff vals and use to trim top and bottom .5% of data
+. //n=41747 (after also dropping those with negative income)
+. //Basically doing something along the lines of adding up all the weights before, then get a row num or something and drop stuff before
+. sort(inc_cons_ratio)
+{txt}
+{com}. egen total_weight = sum(weight)
+{txt}
+{com}. local bot_cutoff = 0
+{txt}
+{com}. local top_cutoff = 0
+{txt}
+{com}. local curr_weight = 0
+{txt}
+{com}. local N = _N
+{txt}
+{com}. forval i = 1/`N'{c -(}
+{txt}  2{com}.     local curr_weight = `curr_weight' + weight[`i']
+{txt}  3{com}.         if `curr_weight' > .005*total_weight[1]{c -(}
+{txt}  4{com}.             local bot_cutoff = inc_cons_ratio[`i'-1]
+{txt}  5{com}.                 continue, break
+{txt}  6{com}.         {c )-}
+{txt}  7{com}. {c )-}
+{txt}
+{com}. local curr_weight = 0
+{txt}
+{com}. forval i = 0/`N'{c -(}
+{txt}  2{com}.     local curr_weight = `curr_weight' + weight[`N' - `i']
+{txt}  3{com}.         if `curr_weight' > .005*total_weight[1]{c -(}
+{txt}  4{com}.             local top_cutoff = inc_cons_ratio[_N - `i' + 1]
+{txt}  5{com}.                 continue, break
+{txt}  6{com}.         {c )-}
+{txt}  7{com}. {c )-}
+{txt}
+{com}. sum income
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 6}income {c |}{res}     42,167     31768.5     24506.4          0    1024568
+{txt}
+{com}. 
+. //Use cutoffs to drop top and bot .05% of data
+. drop if inc_cons_ratio > `top_cutoff'
+{txt}(224 observations deleted)
+
+{com}. //The bottom cutoff is 0, so I drop a bunch of values here. Not sure what to do exactly
+. drop if inc_cons_ratio <= `bot_cutoff'
+{txt}(249 observations deleted)
+
+{com}. 
+. sum income
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 6}income {c |}{res}     41,694    31441.45    21484.67          2     692600
+{txt}
+{com}. 
+. //drop data not in 2004,2006,2012 or 2014
+. drop if year != 2006 & year != 2014 & year != 2004 & year != 2012
+{txt}(27,177 observations deleted)
+
+{com}. 
+. //Create a categorical education variable as defined in paper
+. gen educ = 1 if studio == 1 | studio ==2 
+{txt}(13,122 missing values generated)
+
+{com}. replace educ = 2 if studio == 3
+{txt}(6,049 real changes made)
+
+{com}. replace educ = 3 if studio == 4 | studio == 5
+{txt}(6,920 real changes made)
+
+{com}. replace educ = 4 if studio == 6
+{txt}(153 real changes made)
+
+{com}. 
+. 
+. //Deflate income and consumption variables using OECD CPI numbers (base year is 2015)
+. replace income = income/(82.9535/100) if year == 2004
+{txt}(3,831 real changes made)
+
+{com}. replace consumption = consumption/(82.9535/100) if year == 2004
+{txt}(3,831 real changes made)
+
+{com}. replace income = income/(86.36923/100) if year == 2006
+{txt}(3,657 real changes made)
+
+{com}. replace consumption = consumption/(86.36923/100) if year == 2006
+{txt}(3,657 real changes made)
+
+{com}. replace income = income/(98.48837/100) if year == 2012
+{txt}(3,662 real changes made)
+
+{com}. replace consumption = consumption/(98.48837/100) if year == 2012
+{txt}(3,662 real changes made)
+
+{com}. replace income = income/(99.93023/100) if year == 2014
+{txt}(3,367 real changes made)
+
+{com}. replace consumption = consumption/(99.93023/100) if year == 2014
+{txt}(3,367 real changes made)
+
+{com}. 
+. //Calculate new weights to allow cross year comparison on the data
+. egen curr_total_weight = sum(weight) if year == 2004
+{txt}(10,686 missing values generated)
+
+{com}. replace weight = weight/curr_total_weight if year == 2004
+{txt}(3,831 real changes made)
+
+{com}. drop curr_total_weight
+{txt}
+{com}. egen curr_total_weight = sum(weight) if year == 2006
+{txt}(10,860 missing values generated)
+
+{com}. replace weight = weight/curr_total_weight if year == 2006
+{txt}(3,657 real changes made)
+
+{com}. drop curr_total_weight
+{txt}
+{com}. egen curr_total_weight = sum(weight) if year == 2012
+{txt}(10,855 missing values generated)
+
+{com}. replace weight = weight/curr_total_weight if year == 2012
+{txt}(3,662 real changes made)
+
+{com}. drop curr_total_weight
+{txt}
+{com}. egen curr_total_weight = sum(weight) if year == 2014
+{txt}(11,150 missing values generated)
+
+{com}. replace weight = weight/curr_total_weight if year == 2014
+{txt}(3,367 real changes made)
+
+{com}. drop curr_total_weight
+{txt}
+{com}. 
+. //Generate variables for regression
+. gen age_sqr = age^2
+{txt}
+{com}. gen hhold_size_sqr = hhold_size^2
+{txt}
+{com}. gen ln_inc = ln(income)
+{txt}
+{com}. gen ln_consump = ln(consumption)
+{txt}
+{com}. 
+. //Run regressions as in paper and generate residual values for consumption and income
+. reg ln_inc age age_sqr i.gender i.educ hhold_size hhold_size_sqr i.region i.educ#year i.gender#year year [pweight = weight]
+{txt}(sum of wgt is 4.000000016671819)
+{p 0 6 2}note: {bf:4.educ#2014.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2006.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2012.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2014.year} omitted because of collinearity.{p_end}
+
+Linear regression                               Number of obs     = {res}    14,517
+                                                {txt}F(42, 14474)      =  {res}   105.04
+                                                {txt}Prob > F          = {res}    0.0000
+                                                {txt}R-squared         = {res}    0.3718
+                                                {txt}Root MSE          =    {res} .56499
+
+{txt}{hline 15}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 16}{c |}{col 28}    Robust
+{col 1}        ln_inc{col 16}{c |} Coefficient{col 28}  std. err.{col 40}      t{col 48}   P>|t|{col 56}     [95% con{col 69}f. interval]
+{hline 15}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 11}age {c |}{col 16}{res}{space 2} .0088783{col 28}{space 2}  .007782{col 39}{space 1}    1.14{col 48}{space 3}0.254{col 56}{space 4}-.0063754{col 69}{space 3}  .024132
+{txt}{space 7}age_sqr {c |}{col 16}{res}{space 2} .0000804{col 28}{space 2} .0000856{col 39}{space 1}    0.94{col 48}{space 3}0.348{col 56}{space 4}-.0000874{col 69}{space 3} .0002483
+{txt}{space 6}2.gender {c |}{col 16}{res}{space 2}-.0873111{col 28}{space 2} .0237842{col 39}{space 1}   -3.67{col 48}{space 3}0.000{col 56}{space 4}-.1339311{col 69}{space 3}-.0406912
+{txt}{space 14} {c |}
+{space 10}educ {c |}
+{space 12}2  {c |}{col 16}{res}{space 2} .2240331{col 28}{space 2} .0423921{col 39}{space 1}    5.28{col 48}{space 3}0.000{col 56}{space 4} .1409392{col 69}{space 3}  .307127
+{txt}{space 12}3  {c |}{col 16}{res}{space 2} .5981858{col 28}{space 2}   .04258{col 39}{space 1}   14.05{col 48}{space 3}0.000{col 56}{space 4} .5147236{col 69}{space 3} .6816481
+{txt}{space 12}4  {c |}{col 16}{res}{space 2} 1.161381{col 28}{space 2} .1030602{col 39}{space 1}   11.27{col 48}{space 3}0.000{col 56}{space 4} .9593699{col 69}{space 3} 1.363392
+{txt}{space 14} {c |}
+{space 4}hhold_size {c |}{col 16}{res}{space 2}  .445944{col 28}{space 2} .0202293{col 39}{space 1}   22.04{col 48}{space 3}0.000{col 56}{space 4}  .406292{col 69}{space 3} .4855959
+{txt}hhold_size_sqr {c |}{col 16}{res}{space 2} -.047529{col 28}{space 2} .0032142{col 39}{space 1}  -14.79{col 48}{space 3}0.000{col 56}{space 4}-.0538293{col 69}{space 3}-.0412287
+{txt}{space 14} {c |}
+{space 8}region {c |}
+{space 12}2  {c |}{col 16}{res}{space 2} .1688311{col 28}{space 2} .0778717{col 39}{space 1}    2.17{col 48}{space 3}0.030{col 56}{space 4} .0161926{col 69}{space 3} .3214695
+{txt}{space 12}3  {c |}{col 16}{res}{space 2} .1634278{col 28}{space 2} .0302074{col 39}{space 1}    5.41{col 48}{space 3}0.000{col 56}{space 4} .1042174{col 69}{space 3} .2226382
+{txt}{space 12}4  {c |}{col 16}{res}{space 2} .0706289{col 28}{space 2} .0510502{col 39}{space 1}    1.38{col 48}{space 3}0.167{col 56}{space 4} -.029436{col 69}{space 3} .1706938
+{txt}{space 12}5  {c |}{col 16}{res}{space 2} .0359096{col 28}{space 2} .0325404{col 39}{space 1}    1.10{col 48}{space 3}0.270{col 56}{space 4}-.0278738{col 69}{space 3} .0996929
+{txt}{space 12}6  {c |}{col 16}{res}{space 2} .1116612{col 28}{space 2} .0524658{col 39}{space 1}    2.13{col 48}{space 3}0.033{col 56}{space 4} .0088214{col 69}{space 3}  .214501
+{txt}{space 12}7  {c |}{col 16}{res}{space 2} .1058248{col 28}{space 2} .0327999{col 39}{space 1}    3.23{col 48}{space 3}0.001{col 56}{space 4} .0415328{col 69}{space 3} .1701169
+{txt}{space 12}8  {c |}{col 16}{res}{space 2} .1360612{col 28}{space 2} .0314521{col 39}{space 1}    4.33{col 48}{space 3}0.000{col 56}{space 4}  .074411{col 69}{space 3} .1977114
+{txt}{space 12}9  {c |}{col 16}{res}{space 2} .1497351{col 28}{space 2} .0318062{col 39}{space 1}    4.71{col 48}{space 3}0.000{col 56}{space 4} .0873908{col 69}{space 3} .2120793
+{txt}{space 11}10  {c |}{col 16}{res}{space 2}-.0159003{col 28}{space 2} .0412415{col 39}{space 1}   -0.39{col 48}{space 3}0.700{col 56}{space 4}-.0967389{col 69}{space 3} .0649384
+{txt}{space 11}11  {c |}{col 16}{res}{space 2} .0861164{col 28}{space 2} .0373179{col 39}{space 1}    2.31{col 48}{space 3}0.021{col 56}{space 4} .0129685{col 69}{space 3} .1592643
+{txt}{space 11}12  {c |}{col 16}{res}{space 2}  .038151{col 28}{space 2} .0408866{col 39}{space 1}    0.93{col 48}{space 3}0.351{col 56}{space 4} -.041992{col 69}{space 3}  .118294
+{txt}{space 11}13  {c |}{col 16}{res}{space 2}-.0836004{col 28}{space 2} .0561257{col 39}{space 1}   -1.49{col 48}{space 3}0.136{col 56}{space 4}-.1936139{col 69}{space 3}  .026413
+{txt}{space 11}14  {c |}{col 16}{res}{space 2}-.1903684{col 28}{space 2} .0683834{col 39}{space 1}   -2.78{col 48}{space 3}0.005{col 56}{space 4}-.3244086{col 69}{space 3}-.0563281
+{txt}{space 11}15  {c |}{col 16}{res}{space 2}-.4827633{col 28}{space 2} .0373896{col 39}{space 1}  -12.91{col 48}{space 3}0.000{col 56}{space 4}-.5560517{col 69}{space 3} -.409475
+{txt}{space 11}16  {c |}{col 16}{res}{space 2} -.269235{col 28}{space 2} .0366521{col 39}{space 1}   -7.35{col 48}{space 3}0.000{col 56}{space 4}-.3410778{col 69}{space 3}-.1973922
+{txt}{space 11}17  {c |}{col 16}{res}{space 2}-.3739936{col 28}{space 2} .0726927{col 39}{space 1}   -5.14{col 48}{space 3}0.000{col 56}{space 4}-.5164806{col 69}{space 3}-.2315066
+{txt}{space 11}18  {c |}{col 16}{res}{space 2}-.3720412{col 28}{space 2} .0471856{col 39}{space 1}   -7.88{col 48}{space 3}0.000{col 56}{space 4}-.4645309{col 69}{space 3}-.2795514
+{txt}{space 11}19  {c |}{col 16}{res}{space 2}-.4080752{col 28}{space 2} .0336969{col 39}{space 1}  -12.11{col 48}{space 3}0.000{col 56}{space 4}-.4741255{col 69}{space 3}-.3420249
+{txt}{space 11}20  {c |}{col 16}{res}{space 2}-.1575841{col 28}{space 2} .0452767{col 39}{space 1}   -3.48{col 48}{space 3}0.001{col 56}{space 4}-.2463323{col 69}{space 3} -.068836
+{txt}{space 14} {c |}
+{space 5}educ#year {c |}
+{space 7}1 2006  {c |}{col 16}{res}{space 2} .0858724{col 28}{space 2} .0604162{col 39}{space 1}    1.42{col 48}{space 3}0.155{col 56}{space 4}-.0325509{col 69}{space 3} .2042958
+{txt}{space 7}1 2012  {c |}{col 16}{res}{space 2} .1271887{col 28}{space 2} .1332803{col 39}{space 1}    0.95{col 48}{space 3}0.340{col 56}{space 4}-.1340577{col 69}{space 3} .3884351
+{txt}{space 7}1 2014  {c |}{col 16}{res}{space 2} .0568952{col 28}{space 2} .1606447{col 39}{space 1}    0.35{col 48}{space 3}0.723{col 56}{space 4}-.2579889{col 69}{space 3} .3717792
+{txt}{space 7}2 2006  {c |}{col 16}{res}{space 2} .1111588{col 28}{space 2} .0431859{col 39}{space 1}    2.57{col 48}{space 3}0.010{col 56}{space 4} .0265089{col 69}{space 3} .1958087
+{txt}{space 7}2 2012  {c |}{col 16}{res}{space 2} .1281035{col 28}{space 2} .1193167{col 39}{space 1}    1.07{col 48}{space 3}0.283{col 56}{space 4}-.1057724{col 69}{space 3} .3619795
+{txt}{space 7}2 2014  {c |}{col 16}{res}{space 2} .1794706{col 28}{space 2} .1420724{col 39}{space 1}    1.26{col 48}{space 3}0.207{col 56}{space 4}-.0990095{col 69}{space 3} .4579507
+{txt}{space 7}3 2006  {c |}{col 16}{res}{space 2} .0918614{col 28}{space 2} .0419536{col 39}{space 1}    2.19{col 48}{space 3}0.029{col 56}{space 4} .0096269{col 69}{space 3} .1740958
+{txt}{space 7}3 2012  {c |}{col 16}{res}{space 2} .1571848{col 28}{space 2} .1190895{col 39}{space 1}    1.32{col 48}{space 3}0.187{col 56}{space 4}-.0762459{col 69}{space 3} .3906155
+{txt}{space 7}3 2014  {c |}{col 16}{res}{space 2} .2214631{col 28}{space 2} .1416733{col 39}{space 1}    1.56{col 48}{space 3}0.118{col 56}{space 4}-.0562347{col 69}{space 3} .4991609
+{txt}{space 7}4 2006  {c |}{col 16}{res}{space 2} .0247837{col 28}{space 2} .1166344{col 39}{space 1}    0.21{col 48}{space 3}0.832{col 56}{space 4}-.2038345{col 69}{space 3}  .253402
+{txt}{space 7}4 2012  {c |}{col 16}{res}{space 2}-.0404635{col 28}{space 2} .1083992{col 39}{space 1}   -0.37{col 48}{space 3}0.709{col 56}{space 4}-.2529399{col 69}{space 3} .1720128
+{txt}{space 7}4 2014  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 14} {c |}
+{space 3}gender#year {c |}
+{space 7}1 2006  {c |}{col 16}{res}{space 2} .0132675{col 28}{space 2} .0340283{col 39}{space 1}    0.39{col 48}{space 3}0.697{col 56}{space 4}-.0534323{col 69}{space 3} .0799672
+{txt}{space 7}1 2012  {c |}{col 16}{res}{space 2}-.0318957{col 28}{space 2} .0403414{col 39}{space 1}   -0.79{col 48}{space 3}0.429{col 56}{space 4}  -.11097{col 69}{space 3} .0471785
+{txt}{space 7}1 2014  {c |}{col 16}{res}{space 2} .0216245{col 28}{space 2} .0372035{col 39}{space 1}    0.58{col 48}{space 3}0.561{col 56}{space 4}-.0512992{col 69}{space 3} .0945481
+{txt}{space 7}2 2006  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 7}2 2012  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 7}2 2014  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 14} {c |}
+{space 10}year {c |}{col 16}{res}{space 2}-.0498343{col 28}{space 2} .0142806{col 39}{space 1}   -3.49{col 48}{space 3}0.000{col 56}{space 4}-.0778262{col 69}{space 3}-.0218425
+{txt}{space 9}_cons {c |}{col 16}{res}{space 2} 108.5846{col 28}{space 2} 28.60711{col 39}{space 1}    3.80{col 48}{space 3}0.000{col 56}{space 4} 52.51098{col 69}{space 3} 164.6582
+{txt}{hline 15}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}{txt}
+{com}. predict resid_inc_log, residuals
+{txt}
+{com}. gen resid_income = exp(resid_inc_log)
+{txt}
+{com}. 
+. reg ln_consump age age_sqr i.gender i.educ hhold_size hhold_size_sqr i.region i.educ#year i.gender#year year [pweight = weight]
+{txt}(sum of wgt is 4.000000016671819)
+{p 0 6 2}note: {bf:4.educ#2014.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2006.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2012.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2014.year} omitted because of collinearity.{p_end}
+
+Linear regression                               Number of obs     = {res}    14,517
+                                                {txt}{help j_robustsingular:F(41, 14474) }     =  {res}        .
+                                                {txt}Prob > F          = {res}         .
+                                                {txt}R-squared         = {res}    0.3953
+                                                {txt}Root MSE          =    {res}  .3862
+
+{txt}{hline 15}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 16}{c |}{col 28}    Robust
+{col 1}    ln_consump{col 16}{c |} Coefficient{col 28}  std. err.{col 40}      t{col 48}   P>|t|{col 56}     [95% con{col 69}f. interval]
+{hline 15}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 11}age {c |}{col 16}{res}{space 2} .0047671{col 28}{space 2} .0047589{col 39}{space 1}    1.00{col 48}{space 3}0.316{col 56}{space 4}-.0045609{col 69}{space 3}  .014095
+{txt}{space 7}age_sqr {c |}{col 16}{res}{space 2} .0000698{col 28}{space 2} .0000533{col 39}{space 1}    1.31{col 48}{space 3}0.191{col 56}{space 4}-.0000347{col 69}{space 3} .0001743
+{txt}{space 6}2.gender {c |}{col 16}{res}{space 2}-.0316717{col 28}{space 2} .0175975{col 39}{space 1}   -1.80{col 48}{space 3}0.072{col 56}{space 4}-.0661651{col 69}{space 3} .0028216
+{txt}{space 14} {c |}
+{space 10}educ {c |}
+{space 12}2  {c |}{col 16}{res}{space 2} .1749329{col 28}{space 2} .0275643{col 39}{space 1}    6.35{col 48}{space 3}0.000{col 56}{space 4} .1209034{col 69}{space 3} .2289625
+{txt}{space 12}3  {c |}{col 16}{res}{space 2} .4717826{col 28}{space 2} .0277006{col 39}{space 1}   17.03{col 48}{space 3}0.000{col 56}{space 4} .4174858{col 69}{space 3} .5260793
+{txt}{space 12}4  {c |}{col 16}{res}{space 2} .9405933{col 28}{space 2} .0841605{col 39}{space 1}   11.18{col 48}{space 3}0.000{col 56}{space 4}  .775628{col 69}{space 3} 1.105559
+{txt}{space 14} {c |}
+{space 4}hhold_size {c |}{col 16}{res}{space 2} .3295416{col 28}{space 2} .0139347{col 39}{space 1}   23.65{col 48}{space 3}0.000{col 56}{space 4} .3022278{col 69}{space 3} .3568555
+{txt}hhold_size_sqr {c |}{col 16}{res}{space 2}-.0330268{col 28}{space 2} .0021862{col 39}{space 1}  -15.11{col 48}{space 3}0.000{col 56}{space 4}-.0373121{col 69}{space 3}-.0287415
+{txt}{space 14} {c |}
+{space 8}region {c |}
+{space 12}2  {c |}{col 16}{res}{space 2}  .053587{col 28}{space 2} .0536031{col 39}{space 1}    1.00{col 48}{space 3}0.317{col 56}{space 4} -.051482{col 69}{space 3}  .158656
+{txt}{space 12}3  {c |}{col 16}{res}{space 2} .0897401{col 28}{space 2} .0186516{col 39}{space 1}    4.81{col 48}{space 3}0.000{col 56}{space 4} .0531805{col 69}{space 3} .1262996
+{txt}{space 12}4  {c |}{col 16}{res}{space 2} .0034248{col 28}{space 2} .0280205{col 39}{space 1}    0.12{col 48}{space 3}0.903{col 56}{space 4}-.0514989{col 69}{space 3} .0583485
+{txt}{space 12}5  {c |}{col 16}{res}{space 2}-.0168674{col 28}{space 2} .0197207{col 39}{space 1}   -0.86{col 48}{space 3}0.392{col 56}{space 4}-.0555226{col 69}{space 3} .0217877
+{txt}{space 12}6  {c |}{col 16}{res}{space 2} .0545505{col 28}{space 2} .0254843{col 39}{space 1}    2.14{col 48}{space 3}0.032{col 56}{space 4}  .004598{col 69}{space 3} .1045031
+{txt}{space 12}7  {c |}{col 16}{res}{space 2} .0525318{col 28}{space 2} .0208462{col 39}{space 1}    2.52{col 48}{space 3}0.012{col 56}{space 4} .0116706{col 69}{space 3}  .093393
+{txt}{space 12}8  {c |}{col 16}{res}{space 2} .0619459{col 28}{space 2} .0177911{col 39}{space 1}    3.48{col 48}{space 3}0.000{col 56}{space 4} .0270732{col 69}{space 3} .0968187
+{txt}{space 12}9  {c |}{col 16}{res}{space 2} .0802039{col 28}{space 2} .0192569{col 39}{space 1}    4.16{col 48}{space 3}0.000{col 56}{space 4} .0424579{col 69}{space 3}   .11795
+{txt}{space 11}10  {c |}{col 16}{res}{space 2}-.0033561{col 28}{space 2} .0264793{col 39}{space 1}   -0.13{col 48}{space 3}0.899{col 56}{space 4}-.0552589{col 69}{space 3} .0485468
+{txt}{space 11}11  {c |}{col 16}{res}{space 2} .0645875{col 28}{space 2} .0252199{col 39}{space 1}    2.56{col 48}{space 3}0.010{col 56}{space 4} .0151532{col 69}{space 3} .1140218
+{txt}{space 11}12  {c |}{col 16}{res}{space 2} .0731776{col 28}{space 2} .0252538{col 39}{space 1}    2.90{col 48}{space 3}0.004{col 56}{space 4} .0236769{col 69}{space 3} .1226783
+{txt}{space 11}13  {c |}{col 16}{res}{space 2}-.1096617{col 28}{space 2} .0342663{col 39}{space 1}   -3.20{col 48}{space 3}0.001{col 56}{space 4}-.1768281{col 69}{space 3}-.0424953
+{txt}{space 11}14  {c |}{col 16}{res}{space 2}-.1629913{col 28}{space 2} .0387784{col 39}{space 1}   -4.20{col 48}{space 3}0.000{col 56}{space 4}-.2390019{col 69}{space 3}-.0869808
+{txt}{space 11}15  {c |}{col 16}{res}{space 2}-.2758485{col 28}{space 2} .0196174{col 39}{space 1}  -14.06{col 48}{space 3}0.000{col 56}{space 4} -.314301{col 69}{space 3}-.2373959
+{txt}{space 11}16  {c |}{col 16}{res}{space 2}-.2115139{col 28}{space 2}   .02334{col 39}{space 1}   -9.06{col 48}{space 3}0.000{col 56}{space 4}-.2572633{col 69}{space 3}-.1657646
+{txt}{space 11}17  {c |}{col 16}{res}{space 2}-.2879026{col 28}{space 2} .0463658{col 39}{space 1}   -6.21{col 48}{space 3}0.000{col 56}{space 4}-.3787855{col 69}{space 3}-.1970196
+{txt}{space 11}18  {c |}{col 16}{res}{space 2}-.3026847{col 28}{space 2} .0307791{col 39}{space 1}   -9.83{col 48}{space 3}0.000{col 56}{space 4}-.3630158{col 69}{space 3}-.2423537
+{txt}{space 11}19  {c |}{col 16}{res}{space 2} -.289724{col 28}{space 2}  .020235{col 39}{space 1}  -14.32{col 48}{space 3}0.000{col 56}{space 4}-.3293872{col 69}{space 3}-.2500609
+{txt}{space 11}20  {c |}{col 16}{res}{space 2}-.1275272{col 28}{space 2} .0293695{col 39}{space 1}   -4.34{col 48}{space 3}0.000{col 56}{space 4}-.1850951{col 69}{space 3}-.0699592
+{txt}{space 14} {c |}
+{space 5}educ#year {c |}
+{space 7}1 2006  {c |}{col 16}{res}{space 2} .0854671{col 28}{space 2} .0411751{col 39}{space 1}    2.08{col 48}{space 3}0.038{col 56}{space 4} .0047588{col 69}{space 3} .1661755
+{txt}{space 7}1 2012  {c |}{col 16}{res}{space 2}  .276356{col 28}{space 2} .0905232{col 39}{space 1}    3.05{col 48}{space 3}0.002{col 56}{space 4}  .098919{col 69}{space 3} .4537931
+{txt}{space 7}1 2014  {c |}{col 16}{res}{space 2} .1983181{col 28}{space 2} .1075181{col 39}{space 1}    1.84{col 48}{space 3}0.065{col 56}{space 4}-.0124312{col 69}{space 3} .4090673
+{txt}{space 7}2 2006  {c |}{col 16}{res}{space 2} .0976691{col 28}{space 2} .0300019{col 39}{space 1}    3.26{col 48}{space 3}0.001{col 56}{space 4} .0388616{col 69}{space 3} .1564767
+{txt}{space 7}2 2012  {c |}{col 16}{res}{space 2} .2809149{col 28}{space 2}  .081602{col 39}{space 1}    3.44{col 48}{space 3}0.001{col 56}{space 4} .1209646{col 69}{space 3} .4408651
+{txt}{space 7}2 2014  {c |}{col 16}{res}{space 2} .2252048{col 28}{space 2}  .099088{col 39}{space 1}    2.27{col 48}{space 3}0.023{col 56}{space 4} .0309796{col 69}{space 3} .4194299
+{txt}{space 7}3 2006  {c |}{col 16}{res}{space 2} .0738703{col 28}{space 2} .0300181{col 39}{space 1}    2.46{col 48}{space 3}0.014{col 56}{space 4}  .015031{col 69}{space 3} .1327097
+{txt}{space 7}3 2012  {c |}{col 16}{res}{space 2} .2505335{col 28}{space 2} .0814226{col 39}{space 1}    3.08{col 48}{space 3}0.002{col 56}{space 4} .0909347{col 69}{space 3} .4101323
+{txt}{space 7}3 2014  {c |}{col 16}{res}{space 2}  .221836{col 28}{space 2} .0990669{col 39}{space 1}    2.24{col 48}{space 3}0.025{col 56}{space 4} .0276523{col 69}{space 3} .4160197
+{txt}{space 7}4 2006  {c |}{col 16}{res}{space 2} .0184093{col 28}{space 2} .1154381{col 39}{space 1}    0.16{col 48}{space 3}0.873{col 56}{space 4}-.2078641{col 69}{space 3} .2446826
+{txt}{space 7}4 2012  {c |}{col 16}{res}{space 2} .1387715{col 28}{space 2} .0627826{col 39}{space 1}    2.21{col 48}{space 3}0.027{col 56}{space 4} .0157097{col 69}{space 3} .2618334
+{txt}{space 7}4 2014  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 14} {c |}
+{space 3}gender#year {c |}
+{space 7}1 2006  {c |}{col 16}{res}{space 2} .0274915{col 28}{space 2} .0244267{col 39}{space 1}    1.13{col 48}{space 3}0.260{col 56}{space 4} -.020388{col 69}{space 3}  .075371
+{txt}{space 7}1 2012  {c |}{col 16}{res}{space 2} .0101709{col 28}{space 2} .0257675{col 39}{space 1}    0.39{col 48}{space 3}0.693{col 56}{space 4}-.0403368{col 69}{space 3} .0606785
+{txt}{space 7}1 2014  {c |}{col 16}{res}{space 2} .0237562{col 28}{space 2}  .025388{col 39}{space 1}    0.94{col 48}{space 3}0.349{col 56}{space 4}-.0260075{col 69}{space 3} .0735199
+{txt}{space 7}2 2006  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 7}2 2012  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 7}2 2014  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 14} {c |}
+{space 10}year {c |}{col 16}{res}{space 2}-.0486217{col 28}{space 2} .0098744{col 39}{space 1}   -4.92{col 48}{space 3}0.000{col 56}{space 4}-.0679768{col 69}{space 3}-.0292666
+{txt}{space 9}_cons {c |}{col 16}{res}{space 2} 106.3211{col 28}{space 2} 19.78728{col 39}{space 1}    5.37{col 48}{space 3}0.000{col 56}{space 4} 67.53545{col 69}{space 3} 145.1067
+{txt}{hline 15}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}{txt}
+{com}. predict resid_consump_log, residuals
+{txt}
+{com}. gen resid_consump = exp(resid_consump_log)
+{txt}
+{com}. 
+. drop total_weight
+{txt}
+{com}. 
+. matrix income_pctile_vals = J(5,2,.)
+{txt}
+{com}. matrix consump_pctile_vals = J(5,2,.)
+{txt}
+{com}. matrix resid_income_pctile_vals = J(5,2,.)
+{txt}
+{com}. matrix resid_consump_pctile_vals = J(5,2,.)
+{txt}
+{com}. 
+. matrix index_test = J(5,2,.)
+{txt}
+{com}. matrix pctile_cons_test = J(3,1,.)
+{txt}
+{com}. 
+. 
+. matrix cutoffs = [10,25,50,75,90]
+{txt}
+{com}. 
+. //Calculate 2006 non residual values
+. preserve
+{txt}
+{com}. drop if year != 2006 & year != 2004 
+{txt}(7,029 observations deleted)
+
+{com}. egen total_weight = sum(weight)
+{txt}
+{com}. //Loop to generate income and consumption percentile vals for 2006
+. sort(income)
+{txt}
+{com}. local curr_cutoff = 1
+{txt}
+{com}. local curr_weight = 0
+{txt}
+{com}. local N = _N
+{txt}
+{com}. forval i = 1/`N'{c -(}
+{txt}  2{com}.     local curr_weight = `curr_weight' + weight[`i']
+{txt}  3{com}.         //Find household at each cutoff value
+.         if `curr_weight' > cutoffs[1,`curr_cutoff']*.01*total_weight[1]{c -(}
+{txt}  4{com}.                 local weighted_cons_sum = 0
+{txt}  5{com}.                 local weighted_inc_sum = 0
+{txt}  6{com}.                 local obs_counter = 0
+{txt}  7{com}.                 local pctile_weight = 0
+{txt}  8{com}.                 //for 10 or 25 percentile, take weighted sum until 10/25
+.                 if `curr_cutoff' == 1 | `curr_cutoff' == 2{c -(}
+{txt}  9{com}.                         forval j = 1/`i'{c -(}
+{txt} 10{com}.                                 local weighted_cons_sum = `weighted_cons_sum' + consumption[`j']*weight[`j']
+{txt} 11{com}.                                 local weighted_inc_sum = `weighted_inc_sum' + income[`j']*weight[`j']
+{txt} 12{com}.                                 local obs_counter = `obs_counter' + 1
+{txt} 13{com}.                                 local pctile_weight = `pctile_weight' + weight[`j']
+{txt} 14{com}.                         {c )-}
+{txt} 15{com}.                         matrix income_pctile_vals[`curr_cutoff',1] = `weighted_inc_sum'/`pctile_weight'
+{txt} 16{com}.                         matrix consump_pctile_vals[`curr_cutoff',1] = `weighted_cons_sum'/`pctile_weight'
+{txt} 17{com}.                 {c )-}
+{txt} 18{com}.                 //for 75 or 90 percentile, same concept, but loop is diff
+.                 if `curr_cutoff' == 4 | `curr_cutoff' == 5{c -(}
+{txt} 19{com}.                         forval j = `i'/`N'{c -(}
+{txt} 20{com}.                                 local weighted_cons_sum = `weighted_cons_sum' + consumption[`j']*weight[`j']
+{txt} 21{com}.                                 local weighted_inc_sum = `weighted_inc_sum' + income[`j']*weight[`j']
+{txt} 22{com}.                                 local obs_counter = `obs_counter' + 1
+{txt} 23{com}.                                 local pctile_weight = `pctile_weight' + weight[`j']
+{txt} 24{com}.                         {c )-}
+{txt} 25{com}.                         matrix income_pctile_vals[`curr_cutoff',1] = `weighted_inc_sum'/`pctile_weight'
+{txt} 26{com}.                         matrix consump_pctile_vals[`curr_cutoff',1] = `weighted_cons_sum'/`pctile_weight'
+{txt} 27{com}.                 {c )-}
+{txt} 28{com}.                 
+.                 
+.                 //For 50th pctile instead put in the average weighted for top and bot halves
+.                 if `curr_cutoff' == 3{c -(}
+{txt} 29{com}.                         gen weighted_inc = income*weight
+{txt} 30{com}.                         gen weighted_cons = consumption*weight
+{txt} 31{com}.                         
+.                         sum weighted_inc if income > income[`i']
+{txt} 32{com}.                         local upper_half_inc = r(mean)/`curr_weight'
+{txt} 33{com}.                         sum weighted_inc if income < income[`i']
+{txt} 34{com}.                         local lower_half_inc = r(mean)/`curr_weight'
+{txt} 35{com}.                         matrix income_pctile_vals[`curr_cutoff',1] = `upper_half_inc'/`lower_half_inc'
+{txt} 36{com}.                         
+.                         sum weighted_cons if income > income[`i']
+{txt} 37{com}.                         local upper_half_cons = r(mean)/`curr_weight'
+{txt} 38{com}.                         sum weighted_cons if income < income[`i']
+{txt} 39{com}.                         local lower_half_cons = r(mean)/`curr_weight'
+{txt} 40{com}.                         matrix consump_pctile_vals[`curr_cutoff',1] = `upper_half_cons'/`lower_half_cons'
+{txt} 41{com}.                         
+.                         drop weighted_inc
+{txt} 42{com}.                         drop weighted_cons
+{txt} 43{com}.                 {c )-}
+{txt} 44{com}.                 
+.                 local curr_cutoff = `curr_cutoff' + 1
+{txt} 45{com}.                 //Break loop after calculating 90th percentile
+.                 if `curr_cutoff' == 6{c -(}
+{txt} 46{com}.                                 continue, break
+{txt} 47{com}.                 {c )-}
+{txt} 48{com}.         {c )-}
+{txt} 49{com}. {c )-}
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_inc {c |}{res}      3,809    15.06426    18.39332   1.325052   548.6376
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_inc {c |}{res}      3,658      6.0338    6.963851   .0231332   123.7782
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_c~s {c |}{res}      3,809    9.353324    10.84754   .5994622   198.5866
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_c~s {c |}{res}      3,658    5.341003    5.888819   .1542649   74.68635
+{txt}
+{com}. 
+. //Calculate 2014 non residual values
+. restore
+{txt}
+{com}. preserve
+{txt}
+{com}. drop if year != 2014 & year != 2012
+{txt}(7,488 observations deleted)
+
+{com}. egen total_weight = sum(weight)
+{txt}
+{com}. //Loop to generate income and consumption percentile vals for 2014
+. sort(income)
+{txt}
+{com}. local curr_cutoff = 1
+{txt}
+{com}. local curr_weight = 0
+{txt}
+{com}. local N = _N
+{txt}
+{com}. forval i = 1/`N'{c -(}
+{txt}  2{com}.     local curr_weight = `curr_weight' + weight[`i']
+{txt}  3{com}.         if `curr_weight' > cutoffs[1,`curr_cutoff']*.01*total_weight[1]{c -(}
+{txt}  4{com}.             local weighted_cons_sum = 0
+{txt}  5{com}.                 local weighted_inc_sum = 0
+{txt}  6{com}.                 local obs_counter = 0
+{txt}  7{com}.                 local pctile_weight = 0
+{txt}  8{com}.                 //for 10 or 25 percentile, take weighted sum until 10/25
+.                 if `curr_cutoff' == 1 | `curr_cutoff' == 2{c -(}
+{txt}  9{com}.                         forval j = 1/`i'{c -(}
+{txt} 10{com}.                                 local weighted_cons_sum = `weighted_cons_sum' + consumption[`j']*weight[`j']
+{txt} 11{com}.                                 local weighted_inc_sum = `weighted_inc_sum' + income[`j']*weight[`j']
+{txt} 12{com}.                                 local obs_counter = `obs_counter' + 1
+{txt} 13{com}.                                 local pctile_weight = `pctile_weight' + weight[`j']
+{txt} 14{com}.                         {c )-}
+{txt} 15{com}.                         matrix income_pctile_vals[`curr_cutoff',2] = `weighted_inc_sum'/`pctile_weight'
+{txt} 16{com}.                         matrix consump_pctile_vals[`curr_cutoff',2] = `weighted_cons_sum'/`pctile_weight'
+{txt} 17{com}.                 {c )-}
+{txt} 18{com}.                 //for 75 or 90 percentile, same concept, but loop is diff
+.                 if `curr_cutoff' == 4 | `curr_cutoff' == 5{c -(}
+{txt} 19{com}.                         forval j = `i'/`N'{c -(}
+{txt} 20{com}.                                 local weighted_cons_sum = `weighted_cons_sum' + consumption[`j']*weight[`j']
+{txt} 21{com}.                                 local weighted_inc_sum = `weighted_inc_sum' + income[`j']*weight[`j']
+{txt} 22{com}.                                 local obs_counter = `obs_counter' + 1
+{txt} 23{com}.                                 local pctile_weight = `pctile_weight' + weight[`j']
+{txt} 24{com}.                         {c )-}
+{txt} 25{com}.                         matrix income_pctile_vals[`curr_cutoff',2] = `weighted_inc_sum'/`pctile_weight'
+{txt} 26{com}.                         matrix consump_pctile_vals[`curr_cutoff',2] = `weighted_cons_sum'/`pctile_weight'
+{txt} 27{com}.                 {c )-}
+{txt} 28{com}.                 
+.                 //For 50th pctile instead put in the average weighted for top and bot halves
+.                 if `curr_cutoff' == 3{c -(}
+{txt} 29{com}.                         gen weighted_inc = income*weight
+{txt} 30{com}.                         gen weighted_cons = consumption*weight
+{txt} 31{com}.                         
+.                         sum weighted_inc if income > income[`i']
+{txt} 32{com}.                         local upper_half_inc = r(mean)/`curr_weight'
+{txt} 33{com}.                         sum weighted_inc if income < income[`i']
+{txt} 34{com}.                         local lower_half_inc = r(mean)/`curr_weight'
+{txt} 35{com}.                         matrix income_pctile_vals[`curr_cutoff',2] = `upper_half_inc'/`lower_half_inc'
+{txt} 36{com}.                         
+.                         sum weighted_cons if income > income[`i']
+{txt} 37{com}.                         local upper_half_cons = r(mean)/`curr_weight'
+{txt} 38{com}.                         sum weighted_cons if income < income[`i']
+{txt} 39{com}.                         local lower_half_cons = r(mean)/`curr_weight'
+{txt} 40{com}.                         matrix consump_pctile_vals[`curr_cutoff',2] = `upper_half_cons'/`lower_half_cons'
+{txt} 41{com}.                         
+.                         drop weighted_inc
+{txt} 42{com}.                         drop weighted_cons
+{txt} 43{com}.                 {c )-}
+{txt} 44{com}.                 
+.                 local curr_cutoff = `curr_cutoff' + 1
+{txt} 45{com}.                 //Break loop after calculating 90th percentile
+.                 if `curr_cutoff' == 6{c -(}
+{txt} 46{com}.                                 continue, break
+{txt} 47{com}.                 {c )-}
+{txt} 48{com}.         {c )-}
+{txt} 49{com}. {c )-}
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_inc {c |}{res}      3,723    12.84236    13.45333   .0386697   173.7659
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_inc {c |}{res}      3,294    4.963169    5.375981   .0002959    41.0615
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_c~s {c |}{res}      3,723     8.47505     8.71448   .0271629   106.7062
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_c~s {c |}{res}      3,294     4.78398    4.959981   .1502826   37.88427
+{txt}
+{com}. 
+. //Calculate 2006 residual values
+. restore
+{txt}
+{com}. preserve
+{txt}
+{com}. drop if year != 2006 & year != 2004
+{txt}(7,029 observations deleted)
+
+{com}. egen total_weight = sum(weight)
+{txt}
+{com}. //Loop to generate income and consumption percentile vals for 2014
+. sort(resid_income)
+{txt}
+{com}. local curr_cutoff = 1
+{txt}
+{com}. local curr_weight = 0
+{txt}
+{com}. local N = _N
+{txt}
+{com}. forval i = 1/`N'{c -(}
+{txt}  2{com}.     local curr_weight = `curr_weight' + weight[`i']
+{txt}  3{com}.         if `curr_weight' > cutoffs[1,`curr_cutoff']*.01*total_weight[1]{c -(}
+{txt}  4{com}.             local weighted_cons_sum = 0
+{txt}  5{com}.                 local weighted_inc_sum = 0
+{txt}  6{com}.                 local obs_counter = 0
+{txt}  7{com}.                 local pctile_weight = 0
+{txt}  8{com}.                 //for 10 or 25 percentile, take weighted sum until 10/25
+.                 if `curr_cutoff' == 1 | `curr_cutoff' == 2{c -(}
+{txt}  9{com}.                         forval j = 1/`i'{c -(}
+{txt} 10{com}.                                 local weighted_cons_sum = `weighted_cons_sum' + resid_consump[`j']*weight[`j']
+{txt} 11{com}.                                 local weighted_inc_sum = `weighted_inc_sum' + resid_income[`j']*weight[`j']
+{txt} 12{com}.                                 local obs_counter = `obs_counter' + 1
+{txt} 13{com}.                                 local pctile_weight = `pctile_weight' + weight[`j']
+{txt} 14{com}.                         {c )-}
+{txt} 15{com}.                         matrix resid_income_pctile_vals[`curr_cutoff',1] = `weighted_inc_sum'/`pctile_weight'
+{txt} 16{com}.                         matrix resid_consump_pctile_vals[`curr_cutoff',1] = `weighted_cons_sum'/`pctile_weight'
+{txt} 17{com}.                 {c )-}
+{txt} 18{com}.                 //for 75 or 90 percentile, same concept, but loop is diff
+.                 if `curr_cutoff' == 4 | `curr_cutoff' == 5{c -(}
+{txt} 19{com}.                         forval j = `i'/`N'{c -(}
+{txt} 20{com}.                                 local weighted_cons_sum = `weighted_cons_sum' + resid_consump[`j']*weight[`j']
+{txt} 21{com}.                                 local weighted_inc_sum = `weighted_inc_sum' + resid_income[`j']*weight[`j']
+{txt} 22{com}.                                 local obs_counter = `obs_counter' + 1
+{txt} 23{com}.                                 local pctile_weight = `pctile_weight' + weight[`j']
+{txt} 24{com}.                         {c )-}
+{txt} 25{com}.                         matrix resid_income_pctile_vals[`curr_cutoff',1] = `weighted_inc_sum'/`pctile_weight'
+{txt} 26{com}.                         matrix resid_consump_pctile_vals[`curr_cutoff',1] = `weighted_cons_sum'/`pctile_weight'
+{txt} 27{com}.                 {c )-}
+{txt} 28{com}.                 
+.                 //For 50th pctile instead put in the average weighted for top and bot halves
+.                 if `curr_cutoff' == 3{c -(}
+{txt} 29{com}.                         gen weighted_inc = resid_income*weight
+{txt} 30{com}.                         gen weighted_cons = resid_consump*weight
+{txt} 31{com}.                         
+.                         sum weighted_inc if resid_income > resid_income[`i']
+{txt} 32{com}.                         local upper_half_inc = r(mean)/`curr_weight'
+{txt} 33{com}.                         sum weighted_inc if resid_income < resid_income[`i']
+{txt} 34{com}.                         local lower_half_inc = r(mean)/`curr_weight'
+{txt} 35{com}.                         matrix resid_income_pctile_vals[`curr_cutoff',1] = `upper_half_inc'/`lower_half_inc'
+{txt} 36{com}.                         
+.                         sum weighted_cons if resid_income > resid_income[`i']
+{txt} 37{com}.                         local upper_half_cons = r(mean)/`curr_weight'
+{txt} 38{com}.                         sum weighted_cons if resid_income < resid_income[`i']
+{txt} 39{com}.                         local lower_half_cons = r(mean)/`curr_weight'
+{txt} 40{com}.                         matrix resid_consump_pctile_vals[`curr_cutoff',1] = `upper_half_cons'/`lower_half_cons'
+{txt} 41{com}.                         
+.                         drop weighted_inc
+{txt} 42{com}.                         drop weighted_cons
+{txt} 43{com}.                 {c )-}
+{txt} 44{com}.                 
+.                 local curr_cutoff = `curr_cutoff' + 1
+{txt} 45{com}.                 //Break loop after calculating 90th percentile
+.                 if `curr_cutoff' == 6{c -(}
+{txt} 46{com}.                                 continue, break
+{txt} 47{com}.                 {c )-}
+{txt} 48{com}.         {c )-}
+{txt} 49{com}. {c )-}
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_inc {c |}{res}      3,627    .0004161    .0004766   .0000417   .0078718
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_inc {c |}{res}      3,860    .0001899    .0002059   1.20e-06   .0029498
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_c~s {c |}{res}      3,627    .0003533    .0003941   .0000255   .0047937
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_c~s {c |}{res}      3,860    .0002229    .0002349   9.25e-06   .0037088
+{txt}
+{com}. 
+. //Calculate 2014 residual values
+. restore
+{txt}
+{com}. preserve
+{txt}
+{com}. drop if year != 2014 & year != 2012
+{txt}(7,488 observations deleted)
+
+{com}. egen total_weight = sum(weight)
+{txt}
+{com}. //Loop to generate income and consumption percentile vals for 2014
+. sort(resid_income)
+{txt}
+{com}. local curr_cutoff = 1
+{txt}
+{com}. local curr_weight = 0
+{txt}
+{com}. local N = _N
+{txt}
+{com}. forval i = 1/`N'{c -(}
+{txt}  2{com}.     local curr_weight = `curr_weight' + weight[`i']
+{txt}  3{com}.         if `curr_weight' > cutoffs[1,`curr_cutoff']*.01*total_weight[1]{c -(}
+{txt}  4{com}.             local weighted_cons_sum = 0
+{txt}  5{com}.                 local weighted_inc_sum = 0
+{txt}  6{com}.                 local obs_counter = 0
+{txt}  7{com}.                 local pctile_weight = 0
+{txt}  8{com}.                 //for 10 or 25 percentile, take weighted sum until 10/25
+.                 if `curr_cutoff' == 1 | `curr_cutoff' == 2{c -(}
+{txt}  9{com}.                         forval j = 1/`i'{c -(}
+{txt} 10{com}.                                 local weighted_cons_sum = `weighted_cons_sum' + resid_consump[`j']*weight[`j']
+{txt} 11{com}.                                 local weighted_inc_sum = `weighted_inc_sum' + resid_income[`j']*weight[`j']
+{txt} 12{com}.                                 local obs_counter = `obs_counter' + 1
+{txt} 13{com}.                                 local pctile_weight = `pctile_weight' + weight[`j']
+{txt} 14{com}.                         {c )-}
+{txt} 15{com}.                         matrix resid_income_pctile_vals[`curr_cutoff',2] = `weighted_inc_sum'/`pctile_weight'
+{txt} 16{com}.                         matrix resid_consump_pctile_vals[`curr_cutoff',2] = `weighted_cons_sum'/`pctile_weight'
+{txt} 17{com}.                 {c )-}
+{txt} 18{com}.                 //for 75 or 90 percentile, same concept, but loop is diff
+.                 if `curr_cutoff' == 4 | `curr_cutoff' == 5{c -(}
+{txt} 19{com}.                         forval j = `i'/`N'{c -(}
+{txt} 20{com}.                                 local weighted_cons_sum = `weighted_cons_sum' + resid_consump[`j']*weight[`j']
+{txt} 21{com}.                                 local weighted_inc_sum = `weighted_inc_sum' + resid_income[`j']*weight[`j']
+{txt} 22{com}.                                 local obs_counter = `obs_counter' + 1
+{txt} 23{com}.                                 local pctile_weight = `pctile_weight' + weight[`j']
+{txt} 24{com}.                         {c )-}
+{txt} 25{com}.                         matrix resid_income_pctile_vals[`curr_cutoff',2] = `weighted_inc_sum'/`pctile_weight'
+{txt} 26{com}.                         matrix resid_consump_pctile_vals[`curr_cutoff',2] = `weighted_cons_sum'/`pctile_weight'
+{txt} 27{com}.                 {c )-}
+{txt} 28{com}.                 
+.                 
+.                 //For 50th pctile instead put in the average weighted for top and bot halves
+.                 if `curr_cutoff' == 3{c -(}
+{txt} 29{com}.                         gen weighted_inc = resid_income*weight
+{txt} 30{com}.                         gen weighted_cons = resid_consump*weight
+{txt} 31{com}.                         
+.                         sum weighted_inc if resid_income > resid_income[`i']
+{txt} 32{com}.                         local upper_half_inc = r(mean)/`curr_weight'
+{txt} 33{com}.                         sum weighted_inc if resid_income < resid_income[`i']
+{txt} 34{com}.                         local lower_half_inc = r(mean)/`curr_weight'
+{txt} 35{com}.                         matrix resid_income_pctile_vals[`curr_cutoff',2] = `upper_half_inc'/`lower_half_inc'
+{txt} 36{com}.                         
+.                         sum weighted_cons if resid_income > resid_income[`i']
+{txt} 37{com}.                         local upper_half_cons = r(mean)/`curr_weight'
+{txt} 38{com}.                         sum weighted_cons if resid_income < resid_income[`i']
+{txt} 39{com}.                         local lower_half_cons = r(mean)/`curr_weight'
+{txt} 40{com}.                         matrix resid_consump_pctile_vals[`curr_cutoff',2] = `upper_half_cons'/`lower_half_cons'
+{txt} 41{com}.                         
+.                         drop weighted_inc
+{txt} 42{com}.                         drop weighted_cons
+{txt} 43{com}.                 {c )-}
+{txt} 44{com}.                 
+.                 local curr_cutoff = `curr_cutoff' + 1
+{txt} 45{com}.                 //Break loop after calculating 90th percentile
+.                 if `curr_cutoff' == 6{c -(}
+{txt} 46{com}.                                 continue, break
+{txt} 47{com}.                 {c )-}
+{txt} 48{com}.         {c )-}
+{txt} 49{com}. {c )-}
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_inc {c |}{res}      3,599    .0004497    .0004762   7.35e-07   .0050316
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_inc {c |}{res}      3,429    .0002097    .0002137   1.24e-08   .0020288
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_c~s {c |}{res}      3,599    .0003698    .0003825   6.85e-07   .0038441
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+weighted_c~s {c |}{res}      3,429    .0002436    .0002435   9.57e-06   .0021882
+{txt}
+{com}. 
+. matrix list income_pctile_vals
+{res}
+{txt}income_pctile_vals[5,2]
+           c1         c2
+r1 {res} 11177.055  6241.6897
+{txt}r2 {res} 15950.918  10774.994
+{txt}r3 {res}  2.496646  2.5875329
+{txt}r4 {res} 73114.731  61324.539
+{txt}r5 {res} 95569.983  79346.981
+{reset}
+{com}. matrix list consump_pctile_vals
+{res}
+{txt}consump_pctile_vals[5,2]
+           c1         c2
+r1 {res} 14026.421  10700.814
+{txt}r2 {res} 16416.264  12921.749
+{txt}r3 {res} 1.7512297  1.7715481
+{txt}r4 {res} 42564.714  37883.362
+{txt}r5 {res} 52355.154  46244.376
+{reset}
+{com}. matrix list resid_income_pctile_vals
+{res}
+{txt}resid_income_pctile_vals[5,2]
+           c1         c2
+r1 {res} .41731361  .31650965
+{txt}r2 {res} .57107549  .51060851
+{txt}r3 {res} 2.1916009  2.1446886
+{txt}r4 {res} 1.8412741  1.9835539
+{txt}r5 {res}  2.312379   2.491315
+{reset}
+{com}. matrix list resid_consump_pctile_vals
+{res}
+{txt}resid_consump_pctile_vals[5,2]
+           c1         c2
+r1 {res} .68775332  .62025377
+{txt}r2 {res} .76410862   .7243249
+{txt}r3 {res} 1.5850109  1.5177753
+{txt}r4 {res} 1.4367638  1.5163625
+{txt}r5 {res} 1.6762104  1.7660716
+{reset}
+{com}. 
+. //Calculate 90/10 and 75/25 ratios
+. matrix income_ratios = J(2,2,.)
+{txt}
+{com}. matrix consump_ratios = J(2,2,.)
+{txt}
+{com}. matrix resid_income_ratios = J(2,2,.)
+{txt}
+{com}. matrix resid_consump_ratios = J(2,2,.)
+{txt}
+{com}. 
+. matrix income_ratios[1,1] = income_pctile_vals[5,1]/income_pctile_vals[1,1]
+{txt}
+{com}. matrix income_ratios[2,1] = income_pctile_vals[4,1]/income_pctile_vals[2,1]
+{txt}
+{com}. matrix income_ratios[1,2] = income_pctile_vals[5,2]/income_pctile_vals[1,2]
+{txt}
+{com}. matrix income_ratios[2,2] = income_pctile_vals[4,2]/income_pctile_vals[2,2]
+{txt}
+{com}. 
+. matrix consump_ratios[1,1] = consump_pctile_vals[5,1]/consump_pctile_vals[1,1]
+{txt}
+{com}. matrix consump_ratios[2,1] = consump_pctile_vals[4,1]/consump_pctile_vals[2,1]
+{txt}
+{com}. matrix consump_ratios[1,2] = consump_pctile_vals[5,2]/consump_pctile_vals[1,2]
+{txt}
+{com}. matrix consump_ratios[2,2] = consump_pctile_vals[4,2]/consump_pctile_vals[2,2]
+{txt}
+{com}. 
+. matrix resid_income_ratios[1,1] = resid_income_pctile_vals[5,1]/resid_income_pctile_vals[1,1]
+{txt}
+{com}. matrix resid_income_ratios[2,1] = resid_income_pctile_vals[4,1]/resid_income_pctile_vals[2,1]
+{txt}
+{com}. matrix resid_income_ratios[1,2] = resid_income_pctile_vals[5,2]/resid_income_pctile_vals[1,2]
+{txt}
+{com}. matrix resid_income_ratios[2,2] = resid_income_pctile_vals[4,2]/resid_income_pctile_vals[2,2]
+{txt}
+{com}. 
+. matrix resid_consump_ratios[1,1] = resid_consump_pctile_vals[5,1]/resid_consump_pctile_vals[1,1]
+{txt}
+{com}. matrix resid_consump_ratios[2,1] = resid_consump_pctile_vals[4,1]/resid_consump_pctile_vals[2,1]
+{txt}
+{com}. matrix resid_consump_ratios[1,2] = resid_consump_pctile_vals[5,2]/resid_consump_pctile_vals[1,2]
+{txt}
+{com}. matrix resid_consump_ratios[2,2] = resid_consump_pctile_vals[4,2]/resid_consump_pctile_vals[2,2]
+{txt}
+{com}. 
+. matrix list income_pctile_vals
+{res}
+{txt}income_pctile_vals[5,2]
+           c1         c2
+r1 {res} 11177.055  6241.6897
+{txt}r2 {res} 15950.918  10774.994
+{txt}r3 {res}  2.496646  2.5875329
+{txt}r4 {res} 73114.731  61324.539
+{txt}r5 {res} 95569.983  79346.981
+{reset}
+{com}. matrix list income_ratios
+{res}
+{txt}income_ratios[2,2]
+           c1         c2
+r1 {res}  8.550551   12.71242
+{txt}r2 {res} 4.5837319  5.6913756
+{reset}
+{com}. matrix list consump_pctile_vals
+{res}
+{txt}consump_pctile_vals[5,2]
+           c1         c2
+r1 {res} 14026.421  10700.814
+{txt}r2 {res} 16416.264  12921.749
+{txt}r3 {res} 1.7512297  1.7715481
+{txt}r4 {res} 42564.714  37883.362
+{txt}r5 {res} 52355.154  46244.376
+{reset}
+{com}. matrix list consump_ratios
+{res}
+{txt}consump_ratios[2,2]
+           c1         c2
+r1 {res} 3.7326095  4.3215757
+{txt}r2 {res} 2.5928381  2.9317518
+{reset}
+{com}. matrix list resid_income_pctile_vals
+{res}
+{txt}resid_income_pctile_vals[5,2]
+           c1         c2
+r1 {res} .41731361  .31650965
+{txt}r2 {res} .57107549  .51060851
+{txt}r3 {res} 2.1916009  2.1446886
+{txt}r4 {res} 1.8412741  1.9835539
+{txt}r5 {res}  2.312379   2.491315
+{reset}
+{com}. matrix list resid_income_ratios
+{res}
+{txt}resid_income_ratios[2,2]
+           c1         c2
+r1 {res} 5.5411062  7.8712136
+{txt}r2 {res}  3.224222  3.8846864
+{reset}
+{com}. matrix list resid_consump_pctile_vals
+{res}
+{txt}resid_consump_pctile_vals[5,2]
+           c1         c2
+r1 {res} .68775332  .62025377
+{txt}r2 {res} .76410862   .7243249
+{txt}r3 {res} 1.5850109  1.5177753
+{txt}r4 {res} 1.4367638  1.5163625
+{txt}r5 {res} 1.6762104  1.7660716
+{reset}
+{com}. matrix list resid_consump_ratios
+{res}
+{txt}resid_consump_ratios[2,2]
+           c1         c2
+r1 {res} 2.4372261  2.8473372
+{txt}r2 {res} 1.8803135  2.0934839
+{reset}
+{com}. 
+. matrix final_table = J(3,8,.)
+{txt}
+{com}. matrix rownames final_table = "90/10" "75/25" "50/50"
+{txt}
+{com}. matrix colnames final_table = "2006i" "2014i" "2006c" "2014c" "2006ri" "2014ri" "2006rc" "2014rc"
+{txt}
+{com}. 
+. //Yes, this is probably the most trash code I've written in a while
+. //Fill in income ratios
+. matrix final_table[1,1] = income_ratios[1,1]
+{txt}
+{com}. matrix final_table[2,1] = income_ratios[2,1]
+{txt}
+{com}. matrix final_table[1,2] = income_ratios[1,2]
+{txt}
+{com}. matrix final_table[2,2] = income_ratios[2,2]
+{txt}
+{com}. 
+. matrix final_table[3,1] = income_pctile_vals[3,1]
+{txt}
+{com}. matrix final_table[3,2] = income_pctile_vals[3,2]
+{txt}
+{com}. //Fill in consump ratios
+. matrix final_table[1,3] = consump_ratios[1,1]
+{txt}
+{com}. matrix final_table[2,3] = consump_ratios[2,1]
+{txt}
+{com}. matrix final_table[1,4] = consump_ratios[1,2]
+{txt}
+{com}. matrix final_table[2,4] = consump_ratios[2,2]
+{txt}
+{com}. 
+. matrix final_table[3,3] = consump_pctile_vals[3,1]
+{txt}
+{com}. matrix final_table[3,4] = consump_pctile_vals[3,2]
+{txt}
+{com}. //Fill in residual income ratios
+. matrix final_table[1,5] = resid_income_ratios[1,1]
+{txt}
+{com}. matrix final_table[2,5] = resid_income_ratios[2,1]
+{txt}
+{com}. matrix final_table[1,6] = resid_income_ratios[1,2]
+{txt}
+{com}. matrix final_table[2,6] = resid_income_ratios[2,2]
+{txt}
+{com}. 
+. matrix final_table[3,5] = resid_income_pctile_vals[3,1]
+{txt}
+{com}. matrix final_table[3,6] = resid_income_pctile_vals[3,2]
+{txt}
+{com}. //Fill in residual consumption ratios
+. matrix final_table[1,7] = resid_consump_ratios[1,1]
+{txt}
+{com}. matrix final_table[2,7] = resid_consump_ratios[2,1]
+{txt}
+{com}. matrix final_table[1,8] = resid_consump_ratios[1,2]
+{txt}
+{com}. matrix final_table[2,8] = resid_consump_ratios[2,2]
+{txt}
+{com}. 
+. matrix final_table[3,7] = resid_consump_pctile_vals[3,1]
+{txt}
+{com}. matrix final_table[3,8] = resid_consump_pctile_vals[3,2]
+{txt}
+{com}. 
+. esttab matrix(final_table) using table3.txt
+{res}{err}{p 0 4 2}
+file {bf:{err}table3.txt}
+already exists
+{p_end}
+{txt}{search r(602), local:r(602);}
+
+end of do-file
+
+{search r(602), local:r(602);}
+
+{com}. esttab matrix(final_table) using table3.txt,replace
+{res}{txt}(output written to {browse  `"table3.txt"'})
+
+{com}. 
+. exit, clear

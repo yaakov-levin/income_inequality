@@ -97,14 +97,35 @@ gen ln_consump = ln(consumption)
 matrix income_vals = J(1,9,.)
 
 local curr_year = 2002
-local sum_vals = 0
+local sum_ratio_vals = 0
 forval i = 1/8{
 	sum income [aweight = weight] if year == `curr_year', detail
-	egen upper_avg = sum(income), income < r(p50)
-	matrix income_vals[1,`i'] = r(p50)
+	local median = r(p50)
+	local weight_sum = r(sum_w)
+	preserve
+	drop if year != `curr_year'
+	sort(income)
+	local lower_vals = 0
+	local upper_vals = 0
+	local N = _N
+	forval j = 1/`N'{
+		if income[`j']<`median'{
+			local lower_vals = `lower_vals'+income[`j']*weight[`j']
+		}
+		else{
+			local upper_vals = `upper_vals'+income[`j']*weight[`j']
+		}
+	}
+	//Avg of the upper vals and lower vals
+	matrix income_vals[1,`i'] = (`upper_vals'/(`weight_sum'/2))/(`lower_vals'/(`weight_sum'/2)) 
+	local sum_ratio_vals = `sum_ratio_vals'+income_vals[1,`i']
+	restore
+	local curr_year = `curr_year' + 2
 }
+matrix income_vals[1,9] = `sum_ratio_vals'/8
+matrix list income_vals
 
 
-
-
+matrix colnames income_vals = "2002" "2004" "2006" "2008" "2010" "2012" "2014" "2016" "Avg"
+esttab matrix(income_vals) using table4.txt, replace
 

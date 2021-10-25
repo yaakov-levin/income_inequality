@@ -1,0 +1,1076 @@
+{smcl}
+{com}{sf}{ul off}{txt}{.-}
+      name:  {res}<unnamed>
+       {txt}log:  {res}C:\Users\g1ysl01\Documents\Arce_consumption\storico_stata\italy_elasticities.smcl
+  {txt}log type:  {res}smcl
+ {txt}opened on:  {res}27 Sep 2021, 16:02:15
+{txt}
+{com}. 
+. //Merge data
+. use comp.dta
+{txt}
+{com}. drop if nord != 1
+{txt}(284,340 observations deleted)
+
+{com}. merge 1:1 nquest anno using rfam
+{res}
+{txt}{col 5}Result{col 33}Number of obs
+{col 5}{hline 41}
+{col 5}Not matched{col 30}{res}               0
+{txt}{col 5}Matched{col 30}{res}         154,792{txt}  (_merge==3)
+{col 5}{hline 41}
+
+{com}. drop _merge
+{txt}
+{com}. merge 1:1 nquest anno using cons
+{res}
+{txt}{col 5}Result{col 33}Number of obs
+{col 5}{hline 41}
+{col 5}Not matched{col 30}{res}               0
+{txt}{col 5}Matched{col 30}{res}         154,792{txt}  (_merge==3)
+{col 5}{hline 41}
+
+{com}. drop _merge
+{txt}
+{com}. merge 1:1 nquest anno using peso
+{res}
+{txt}{col 5}Result{col 33}Number of obs
+{col 5}{hline 41}
+{col 5}Not matched{col 30}{res}               0
+{txt}{col 5}Matched{col 30}{res}         154,792{txt}  (_merge==3)
+{col 5}{hline 41}
+
+{com}. 
+. //Rename colsrename anno year
+. rename eta age
+{res}{txt}
+{com}. rename ncomp hhold_size
+{res}{txt}
+{com}. rename sesso gender
+{res}{txt}
+{com}. rename ireg region 
+{res}{txt}
+{com}. rename anno year
+{res}{txt}
+{com}. rename peso weight
+{res}{txt}
+{com}. 
+. keep nquest year age hhold_size gender region weight y* c* acom5 studio
+{txt}
+{com}. 
+. 
+. label variable yl "Compensation of employees"
+{txt}
+{com}. label variable yl1 "Net wages and salaries"
+{txt}
+{com}. label variable yl2 "Fringe benefits"
+{txt}
+{com}. label variable yt "Pensions and other transfers"
+{txt}
+{com}. label variable ytp "Pensions and Arrears"
+{txt}
+{com}. label variable yta "Other transfers"
+{txt}
+{com}. label variable ytp "Pensions and Arrears"
+{txt}
+{com}. label variable ym "Net income from self-employment and entrepreneurial income"
+{txt}
+{com}. label variable ym1 "Income from self-employment"
+{txt}
+{com}. label variable ym3 "Entrepreneurial income (profits and dividends) "
+{txt}
+{com}. label variable yc "Property income"
+{txt}
+{com}. label variable yca "Income from buildings"
+{txt}
+{com}. label variable ycf "Income from financial assets "
+{txt}
+{com}. 
+. 
+. //Drop data before 1995, n=86729
+. drop if year < 1995
+{txt}(68,063 observations deleted)
+
+{com}. 
+. //Drop if residing in a small location n=75977
+. drop if acom5 == 1
+{txt}(10,752 observations deleted)
+
+{com}. 
+. //Drop if age of household head outside [25,60] n=42202
+. drop if age<25
+{txt}(541 observations deleted)
+
+{com}. drop if age>60
+{txt}(33,234 observations deleted)
+
+{com}. 
+. //Create consumption and income cols as in paper
+. //gen income = yl1+yt+ym+yc
+. gen income = y1
+{txt}
+{com}. //gen income = ytp1 +yta + yl1+ym1 + yc
+. gen consumption = cn
+{txt}
+{com}. 
+. //Drop if negative income/consumption
+. drop if income<0
+{txt}(35 observations deleted)
+
+{com}. drop if consumption < 0
+{txt}(0 observations deleted)
+
+{com}. 
+. //Define income to consumption ration
+. gen inc_cons_ratio = income/consumption
+{txt}
+{com}. 
+. //gen cutoff vals and use to trim top and bottom .5% of data
+. //n=41747 (after also dropping those with negative income)
+. //Basically doing something along the lines of adding up all the weights before, then get a row num or something and drop stuff before
+. sort(inc_cons_ratio)
+{txt}
+{com}. egen total_weight = sum(weight)
+{txt}
+{com}. local bot_cutoff = 0
+{txt}
+{com}. local top_cutoff = 0
+{txt}
+{com}. local curr_weight = 0
+{txt}
+{com}. local N = _N
+{txt}
+{com}. forval i = 1/`N'{c -(}
+{txt}  2{com}.     local curr_weight = `curr_weight' + weight[`i']
+{txt}  3{com}.         if `curr_weight' > .005*total_weight[1]{c -(}
+{txt}  4{com}.             local bot_cutoff = inc_cons_ratio[`i'-1]
+{txt}  5{com}.                 continue, break
+{txt}  6{com}.         {c )-}
+{txt}  7{com}. {c )-}
+{txt}
+{com}. local curr_weight = 0
+{txt}
+{com}. forval i = 0/`N'{c -(}
+{txt}  2{com}.     local curr_weight = `curr_weight' + weight[`N' - `i']
+{txt}  3{com}.         if `curr_weight' > .005*total_weight[1]{c -(}
+{txt}  4{com}.             local top_cutoff = inc_cons_ratio[_N - `i' + 1]
+{txt}  5{com}.                 continue, break
+{txt}  6{com}.         {c )-}
+{txt}  7{com}. {c )-}
+{txt}
+{com}. sum income
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 6}income {c |}{res}     42,167     31768.5     24506.4          0    1024568
+{txt}
+{com}. 
+. //Use cutoffs to drop top and bot .05% of data
+. drop if inc_cons_ratio > `top_cutoff'
+{txt}(224 observations deleted)
+
+{com}. //The bottom cutoff is 0, so I drop a bunch of values here. Not sure what to do exactly
+. drop if inc_cons_ratio <= `bot_cutoff'
+{txt}(249 observations deleted)
+
+{com}. 
+. sum income
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 6}income {c |}{res}     41,694    31441.45    21484.67          2     692600
+{txt}
+{com}. 
+. //drop data not in 2006 or 2014
+. //n=7036 vs 7060 in paper
+. drop if year != 2006 & year != 2014
+{txt}(34,670 observations deleted)
+
+{com}. 
+. sum income if year == 2006
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 6}income {c |}{res}      3,657    35059.93    24643.83        130     652000
+{txt}
+{com}. sum income if year == 2014
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 6}income {c |}{res}      3,367    33189.21    22704.62        250     325500
+{txt}
+{com}. 
+. //Create a categorical education variable as defined in paper
+. gen educ = 1 if studio == 1 | studio ==2 
+{txt}(6,424 missing values generated)
+
+{com}. replace educ = 2 if studio == 3
+{txt}(2,967 real changes made)
+
+{com}. replace educ = 3 if studio == 4 | studio == 5
+{txt}(3,383 real changes made)
+
+{com}. replace educ = 4 if studio == 6
+{txt}(74 real changes made)
+
+{com}. 
+. sum income if year == 2006
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 6}income {c |}{res}      3,657    35059.93    24643.83        130     652000
+{txt}
+{com}. //Deflate income and consumption variables using OECD CPI numbers (base year is 2015)
+. replace income = income/(86.4/100) if year == 2006
+{txt}(3,657 real changes made)
+
+{com}. replace consumption = consumption/(86.4/100) if year == 2006
+{txt}(3,657 real changes made)
+
+{com}. replace income = income/(99.9/100) if year == 2014
+{txt}(3,367 real changes made)
+
+{com}. replace consumption = consumption/(99.9/100) if year == 2014
+{txt}(3,367 real changes made)
+
+{com}. sum income if year == 2006
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 6}income {c |}{res}      3,657    40578.62    28522.95    150.463   754629.6
+{txt}
+{com}. 
+. //Use sample weights to get unbiased income and consumption numbers
+. //replace income = income*peso
+. //replace consump = consump*peso
+. 
+. //Generate variables for regression
+. gen age_sqr = age^2
+{txt}
+{com}. gen hhold_size_sqr = hhold_size^2
+{txt}
+{com}. gen ln_inc = ln(income)
+{txt}
+{com}. gen ln_consump = ln(consumption)
+{txt}
+{com}. 
+. //Run regressions as in paper and generate residual values for consumption and income
+. reg ln_inc age age_sqr i.gender i.educ hhold_size hhold_size_sqr i.region i.educ#year i.gender#year year [pweight = weight]
+{txt}(sum of wgt is 7,277.10566484928)
+{p 0 6 2}note: {bf:4.educ#2014.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2014.year} omitted because of collinearity.{p_end}
+
+Linear regression                               Number of obs     = {res}     7,024
+                                                {txt}F(32, 6991)       =  {res}    78.82
+                                                {txt}Prob > F          = {res}    0.0000
+                                                {txt}R-squared         = {res}    0.3798
+                                                {txt}Root MSE          =    {res} .55985
+
+{txt}{hline 15}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 16}{c |}{col 28}    Robust
+{col 1}        ln_inc{col 16}{c |} Coefficient{col 28}  std. err.{col 40}      t{col 48}   P>|t|{col 56}     [95% con{col 69}f. interval]
+{hline 15}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 11}age {c |}{col 16}{res}{space 2} .0058973{col 28}{space 2} .0101395{col 39}{space 1}    0.58{col 48}{space 3}0.561{col 56}{space 4}-.0139792{col 69}{space 3} .0257739
+{txt}{space 7}age_sqr {c |}{col 16}{res}{space 2}  .000107{col 28}{space 2} .0001127{col 39}{space 1}    0.95{col 48}{space 3}0.342{col 56}{space 4}-.0001139{col 69}{space 3}  .000328
+{txt}{space 6}2.gender {c |}{col 16}{res}{space 2}-.1003862{col 28}{space 2} .0250335{col 39}{space 1}   -4.01{col 48}{space 3}0.000{col 56}{space 4}-.1494595{col 69}{space 3} -.051313
+{txt}{space 14} {c |}
+{space 10}educ {c |}
+{space 12}2  {c |}{col 16}{res}{space 2} .2447242{col 28}{space 2} .0370407{col 39}{space 1}    6.61{col 48}{space 3}0.000{col 56}{space 4} .1721132{col 69}{space 3} .3173352
+{txt}{space 12}3  {c |}{col 16}{res}{space 2} .6013937{col 28}{space 2} .0365195{col 39}{space 1}   16.47{col 48}{space 3}0.000{col 56}{space 4} .5298043{col 69}{space 3} .6729831
+{txt}{space 12}4  {c |}{col 16}{res}{space 2}  1.09509{col 28}{space 2} .0875889{col 39}{space 1}   12.50{col 48}{space 3}0.000{col 56}{space 4} .9233889{col 69}{space 3}  1.26679
+{txt}{space 14} {c |}
+{space 4}hhold_size {c |}{col 16}{res}{space 2} .4415016{col 28}{space 2} .0261225{col 39}{space 1}   16.90{col 48}{space 3}0.000{col 56}{space 4} .3902936{col 69}{space 3} .4927097
+{txt}hhold_size_sqr {c |}{col 16}{res}{space 2}-.0460567{col 28}{space 2} .0041195{col 39}{space 1}  -11.18{col 48}{space 3}0.000{col 56}{space 4}-.0541322{col 69}{space 3}-.0379813
+{txt}{space 14} {c |}
+{space 8}region {c |}
+{space 12}2  {c |}{col 16}{res}{space 2}  .070471{col 28}{space 2} .1125794{col 39}{space 1}    0.63{col 48}{space 3}0.531{col 56}{space 4}-.1502187{col 69}{space 3} .2911607
+{txt}{space 12}3  {c |}{col 16}{res}{space 2} .1396746{col 28}{space 2}  .037588{col 39}{space 1}    3.72{col 48}{space 3}0.000{col 56}{space 4} .0659907{col 69}{space 3} .2133586
+{txt}{space 12}4  {c |}{col 16}{res}{space 2}-.0113524{col 28}{space 2}  .077444{col 39}{space 1}   -0.15{col 48}{space 3}0.883{col 56}{space 4}-.1631662{col 69}{space 3} .1404614
+{txt}{space 12}5  {c |}{col 16}{res}{space 2}-.0058637{col 28}{space 2} .0423418{col 39}{space 1}   -0.14{col 48}{space 3}0.890{col 56}{space 4}-.0888664{col 69}{space 3}  .077139
+{txt}{space 12}6  {c |}{col 16}{res}{space 2} .0487311{col 28}{space 2} .0543026{col 39}{space 1}    0.90{col 48}{space 3}0.370{col 56}{space 4}-.0577184{col 69}{space 3} .1551806
+{txt}{space 12}7  {c |}{col 16}{res}{space 2} .0886962{col 28}{space 2} .0422261{col 39}{space 1}    2.10{col 48}{space 3}0.036{col 56}{space 4} .0059202{col 69}{space 3} .1714722
+{txt}{space 12}8  {c |}{col 16}{res}{space 2} .0906366{col 28}{space 2} .0403936{col 39}{space 1}    2.24{col 48}{space 3}0.025{col 56}{space 4} .0114529{col 69}{space 3} .1698202
+{txt}{space 12}9  {c |}{col 16}{res}{space 2} .0923642{col 28}{space 2} .0421074{col 39}{space 1}    2.19{col 48}{space 3}0.028{col 56}{space 4} .0098209{col 69}{space 3} .1749074
+{txt}{space 11}10  {c |}{col 16}{res}{space 2}-.0627338{col 28}{space 2}  .053945{col 39}{space 1}   -1.16{col 48}{space 3}0.245{col 56}{space 4}-.1684823{col 69}{space 3} .0430148
+{txt}{space 11}11  {c |}{col 16}{res}{space 2} .0168524{col 28}{space 2} .0525549{col 39}{space 1}    0.32{col 48}{space 3}0.748{col 56}{space 4}-.0861712{col 69}{space 3} .1198761
+{txt}{space 11}12  {c |}{col 16}{res}{space 2}-.0042721{col 28}{space 2}  .051707{col 39}{space 1}   -0.08{col 48}{space 3}0.934{col 56}{space 4}-.1056335{col 69}{space 3} .0970893
+{txt}{space 11}13  {c |}{col 16}{res}{space 2}-.0604389{col 28}{space 2} .0635733{col 39}{space 1}   -0.95{col 48}{space 3}0.342{col 56}{space 4}-.1850619{col 69}{space 3}  .064184
+{txt}{space 11}14  {c |}{col 16}{res}{space 2}-.2445946{col 28}{space 2} .0874762{col 39}{space 1}   -2.80{col 48}{space 3}0.005{col 56}{space 4}-.4160745{col 69}{space 3}-.0731147
+{txt}{space 11}15  {c |}{col 16}{res}{space 2}-.5219248{col 28}{space 2} .0481676{col 39}{space 1}  -10.84{col 48}{space 3}0.000{col 56}{space 4} -.616348{col 69}{space 3}-.4275016
+{txt}{space 11}16  {c |}{col 16}{res}{space 2}-.3025446{col 28}{space 2} .0497984{col 39}{space 1}   -6.08{col 48}{space 3}0.000{col 56}{space 4}-.4001646{col 69}{space 3}-.2049246
+{txt}{space 11}17  {c |}{col 16}{res}{space 2}-.4396857{col 28}{space 2} .1246485{col 39}{space 1}   -3.53{col 48}{space 3}0.000{col 56}{space 4}-.6840345{col 69}{space 3}-.1953368
+{txt}{space 11}18  {c |}{col 16}{res}{space 2}-.3946306{col 28}{space 2} .0592636{col 39}{space 1}   -6.66{col 48}{space 3}0.000{col 56}{space 4}-.5108052{col 69}{space 3} -.278456
+{txt}{space 11}19  {c |}{col 16}{res}{space 2}-.4359643{col 28}{space 2} .0449023{col 39}{space 1}   -9.71{col 48}{space 3}0.000{col 56}{space 4}-.5239865{col 69}{space 3}-.3479421
+{txt}{space 11}20  {c |}{col 16}{res}{space 2}-.1765429{col 28}{space 2}   .05932{col 39}{space 1}   -2.98{col 48}{space 3}0.003{col 56}{space 4}-.2928281{col 69}{space 3}-.0602576
+{txt}{space 14} {c |}
+{space 5}educ#year {c |}
+{space 7}1 2014  {c |}{col 16}{res}{space 2}-.0064156{col 28}{space 2}  .149447{col 39}{space 1}   -0.04{col 48}{space 3}0.966{col 56}{space 4} -.299377{col 69}{space 3} .2865457
+{txt}{space 7}2 2014  {c |}{col 16}{res}{space 2} .0947834{col 28}{space 2} .1313973{col 39}{space 1}    0.72{col 48}{space 3}0.471{col 56}{space 4}-.1627951{col 69}{space 3}  .352362
+{txt}{space 7}3 2014  {c |}{col 16}{res}{space 2} .1553346{col 28}{space 2} .1310831{col 39}{space 1}    1.19{col 48}{space 3}0.236{col 56}{space 4} -.101628{col 69}{space 3} .4122972
+{txt}{space 7}4 2014  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 14} {c |}
+{space 3}gender#year {c |}
+{space 7}1 2014  {c |}{col 16}{res}{space 2} .0080994{col 28}{space 2} .0378503{col 39}{space 1}    0.21{col 48}{space 3}0.831{col 56}{space 4}-.0660986{col 69}{space 3} .0822974
+{txt}{space 7}2 2014  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 14} {c |}
+{space 10}year {c |}{col 16}{res}{space 2}-.0527065{col 28}{space 2} .0166599{col 39}{space 1}   -3.16{col 48}{space 3}0.002{col 56}{space 4}-.0853651{col 69}{space 3} -.020048
+{txt}{space 9}_cons {c |}{col 16}{res}{space 2} 114.5594{col 28}{space 2} 33.39403{col 39}{space 1}    3.43{col 48}{space 3}0.001{col 56}{space 4} 49.09702{col 69}{space 3} 180.0219
+{txt}{hline 15}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}{txt}
+{com}. predict resid_inc_log, residuals
+{txt}
+{com}. gen resid_income = exp(resid_inc_log)
+{txt}
+{com}. 
+. reg ln_consump age age_sqr i.gender i.educ hhold_size hhold_size_sqr i.region i.educ#year i.gender#year year [pweight = weight]
+{txt}(sum of wgt is 7,277.10566484928)
+{p 0 6 2}note: {bf:4.educ#2014.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2014.year} omitted because of collinearity.{p_end}
+
+Linear regression                               Number of obs     = {res}     7,024
+                                                {txt}F(32, 6991)       =  {res}    83.19
+                                                {txt}Prob > F          = {res}    0.0000
+                                                {txt}R-squared         = {res}    0.4188
+                                                {txt}Root MSE          =    {res} .38028
+
+{txt}{hline 15}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 16}{c |}{col 28}    Robust
+{col 1}    ln_consump{col 16}{c |} Coefficient{col 28}  std. err.{col 40}      t{col 48}   P>|t|{col 56}     [95% con{col 69}f. interval]
+{hline 15}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 11}age {c |}{col 16}{res}{space 2} .0053029{col 28}{space 2} .0065523{col 39}{space 1}    0.81{col 48}{space 3}0.418{col 56}{space 4}-.0075417{col 69}{space 3} .0181475
+{txt}{space 7}age_sqr {c |}{col 16}{res}{space 2} .0000615{col 28}{space 2} .0000733{col 39}{space 1}    0.84{col 48}{space 3}0.401{col 56}{space 4}-.0000821{col 69}{space 3} .0002051
+{txt}{space 6}2.gender {c |}{col 16}{res}{space 2}-.0597024{col 28}{space 2} .0172704{col 39}{space 1}   -3.46{col 48}{space 3}0.001{col 56}{space 4}-.0935577{col 69}{space 3}-.0258471
+{txt}{space 14} {c |}
+{space 10}educ {c |}
+{space 12}2  {c |}{col 16}{res}{space 2} .1837075{col 28}{space 2} .0274074{col 39}{space 1}    6.70{col 48}{space 3}0.000{col 56}{space 4} .1299806{col 69}{space 3} .2374343
+{txt}{space 12}3  {c |}{col 16}{res}{space 2} .4552015{col 28}{space 2} .0275954{col 39}{space 1}   16.50{col 48}{space 3}0.000{col 56}{space 4} .4011061{col 69}{space 3} .5092969
+{txt}{space 12}4  {c |}{col 16}{res}{space 2}  .866406{col 28}{space 2} .0927748{col 39}{space 1}    9.34{col 48}{space 3}0.000{col 56}{space 4} .6845393{col 69}{space 3} 1.048273
+{txt}{space 14} {c |}
+{space 4}hhold_size {c |}{col 16}{res}{space 2} .3225834{col 28}{space 2}  .019019{col 39}{space 1}   16.96{col 48}{space 3}0.000{col 56}{space 4} .2853004{col 69}{space 3} .3598663
+{txt}hhold_size_sqr {c |}{col 16}{res}{space 2}-.0314906{col 28}{space 2} .0029912{col 39}{space 1}  -10.53{col 48}{space 3}0.000{col 56}{space 4}-.0373543{col 69}{space 3} -.025627
+{txt}{space 14} {c |}
+{space 8}region {c |}
+{space 12}2  {c |}{col 16}{res}{space 2} .0203949{col 28}{space 2} .0958518{col 39}{space 1}    0.21{col 48}{space 3}0.832{col 56}{space 4}-.1675037{col 69}{space 3} .2082935
+{txt}{space 12}3  {c |}{col 16}{res}{space 2} .0764316{col 28}{space 2} .0252476{col 39}{space 1}    3.03{col 48}{space 3}0.002{col 56}{space 4} .0269386{col 69}{space 3} .1259246
+{txt}{space 12}4  {c |}{col 16}{res}{space 2}-.0931729{col 28}{space 2} .0381807{col 39}{space 1}   -2.44{col 48}{space 3}0.015{col 56}{space 4}-.1680186{col 69}{space 3}-.0183271
+{txt}{space 12}5  {c |}{col 16}{res}{space 2}-.0732261{col 28}{space 2} .0280408{col 39}{space 1}   -2.61{col 48}{space 3}0.009{col 56}{space 4}-.1281945{col 69}{space 3}-.0182577
+{txt}{space 12}6  {c |}{col 16}{res}{space 2}-.0083662{col 28}{space 2} .0346404{col 39}{space 1}   -0.24{col 48}{space 3}0.809{col 56}{space 4} -.076272{col 69}{space 3} .0595396
+{txt}{space 12}7  {c |}{col 16}{res}{space 2} .0187678{col 28}{space 2} .0280592{col 39}{space 1}    0.67{col 48}{space 3}0.504{col 56}{space 4}-.0362367{col 69}{space 3} .0737724
+{txt}{space 12}8  {c |}{col 16}{res}{space 2} .0086064{col 28}{space 2} .0243617{col 39}{space 1}    0.35{col 48}{space 3}0.724{col 56}{space 4}  -.03915{col 69}{space 3} .0563627
+{txt}{space 12}9  {c |}{col 16}{res}{space 2} .0357705{col 28}{space 2} .0264002{col 39}{space 1}    1.35{col 48}{space 3}0.175{col 56}{space 4}-.0159819{col 69}{space 3} .0875229
+{txt}{space 11}10  {c |}{col 16}{res}{space 2}-.0513903{col 28}{space 2} .0370569{col 39}{space 1}   -1.39{col 48}{space 3}0.166{col 56}{space 4}-.1240331{col 69}{space 3} .0212526
+{txt}{space 11}11  {c |}{col 16}{res}{space 2}-.0265696{col 28}{space 2} .0358933{col 39}{space 1}   -0.74{col 48}{space 3}0.459{col 56}{space 4}-.0969315{col 69}{space 3} .0437922
+{txt}{space 11}12  {c |}{col 16}{res}{space 2} .0498953{col 28}{space 2}  .033986{col 39}{space 1}    1.47{col 48}{space 3}0.142{col 56}{space 4}-.0167276{col 69}{space 3} .1165183
+{txt}{space 11}13  {c |}{col 16}{res}{space 2}-.0992954{col 28}{space 2} .0422086{col 39}{space 1}   -2.35{col 48}{space 3}0.019{col 56}{space 4}-.1820371{col 69}{space 3}-.0165537
+{txt}{space 11}14  {c |}{col 16}{res}{space 2}  -.14171{col 28}{space 2} .0466356{col 39}{space 1}   -3.04{col 48}{space 3}0.002{col 56}{space 4}-.2331299{col 69}{space 3}-.0502902
+{txt}{space 11}15  {c |}{col 16}{res}{space 2} -.331473{col 28}{space 2} .0258185{col 39}{space 1}  -12.84{col 48}{space 3}0.000{col 56}{space 4} -.382085{col 69}{space 3}-.2808609
+{txt}{space 11}16  {c |}{col 16}{res}{space 2}-.2446465{col 28}{space 2}  .032004{col 39}{space 1}   -7.64{col 48}{space 3}0.000{col 56}{space 4} -.307384{col 69}{space 3}-.1819089
+{txt}{space 11}17  {c |}{col 16}{res}{space 2} -.321847{col 28}{space 2} .0742263{col 39}{space 1}   -4.34{col 48}{space 3}0.000{col 56}{space 4}-.4673531{col 69}{space 3} -.176341
+{txt}{space 11}18  {c |}{col 16}{res}{space 2}-.3011145{col 28}{space 2} .0447984{col 39}{space 1}   -6.72{col 48}{space 3}0.000{col 56}{space 4}-.3889331{col 69}{space 3} -.213296
+{txt}{space 11}19  {c |}{col 16}{res}{space 2}-.3234374{col 28}{space 2} .0295798{col 39}{space 1}  -10.93{col 48}{space 3}0.000{col 56}{space 4}-.3814228{col 69}{space 3} -.265452
+{txt}{space 11}20  {c |}{col 16}{res}{space 2}-.1291194{col 28}{space 2} .0403672{col 39}{space 1}   -3.20{col 48}{space 3}0.001{col 56}{space 4}-.2082514{col 69}{space 3}-.0499875
+{txt}{space 14} {c |}
+{space 5}educ#year {c |}
+{space 7}1 2014  {c |}{col 16}{res}{space 2} .1299029{col 28}{space 2} .1138866{col 39}{space 1}    1.14{col 48}{space 3}0.254{col 56}{space 4}-.0933493{col 69}{space 3} .3531552
+{txt}{space 7}2 2014  {c |}{col 16}{res}{space 2} .1488684{col 28}{space 2} .1062746{col 39}{space 1}    1.40{col 48}{space 3}0.161{col 56}{space 4}-.0594621{col 69}{space 3} .3571988
+{txt}{space 7}3 2014  {c |}{col 16}{res}{space 2} .1693057{col 28}{space 2} .1062681{col 39}{space 1}    1.59{col 48}{space 3}0.111{col 56}{space 4} -.039012{col 69}{space 3} .3776235
+{txt}{space 7}4 2014  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 14} {c |}
+{space 3}gender#year {c |}
+{space 7}1 2014  {c |}{col 16}{res}{space 2}-.0043521{col 28}{space 2} .0250615{col 39}{space 1}   -0.17{col 48}{space 3}0.862{col 56}{space 4}-.0534802{col 69}{space 3}  .044776
+{txt}{space 7}2 2014  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 14} {c |}
+{space 10}year {c |}{col 16}{res}{space 2}-.0511033{col 28}{space 2} .0133061{col 39}{space 1}   -3.84{col 48}{space 3}0.000{col 56}{space 4}-.0771873{col 69}{space 3}-.0250193
+{txt}{space 9}_cons {c |}{col 16}{res}{space 2} 111.4491{col 28}{space 2} 26.69231{col 39}{space 1}    4.18{col 48}{space 3}0.000{col 56}{space 4} 59.12402{col 69}{space 3} 163.7741
+{txt}{hline 15}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}{txt}
+{com}. predict resid_consump_log, residuals
+{txt}
+{com}. gen resid_consump = exp(resid_consump_log)
+{txt}
+{com}. 
+. sum resid_income  if year == 2006
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_income {c |}{res}      3,657    1.105797    .5901191   .0078026   12.43112
+{txt}
+{com}. sum resid_income if year == 2014
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_income {c |}{res}      3,367    1.180209    .6494592   .0147701   11.55674
+{txt}
+{com}. sum resid_consump if year == 2006
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_cons~p {c |}{res}      3,657    1.066392    .4329505   .0903635   7.800539
+{txt}
+{com}. sum resid_consump if year == 2014
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_cons~p {c |}{res}      3,367    1.100667    .4827179   .1427479   6.481491
+{txt}
+{com}. 
+. //Calculate cutoff values for each decile for each year based off of weights
+. sort(resid_income)
+{txt}
+{com}. preserve
+{txt}
+{com}. drop if year == 2014
+{txt}(3,367 observations deleted)
+
+{com}. matrix deciles_2006 = J(9,1,.)
+{txt}
+{com}. egen total_weight_2006 = sum(weight)
+{txt}
+{com}. local curr_cutoff = 1
+{txt}
+{com}. local curr_weight = 0
+{txt}
+{com}. forval i = 1/`N'{c -(}
+{txt}  2{com}.         //Only need 9 cutoff vals to split into 10 deciles so this is just a way to stop loop
+.         if `curr_cutoff' == 10{c -(}
+{txt}  3{com}.                         continue, break
+{txt}  4{com}.         {c )-}
+{txt}  5{com}.     local curr_weight = `curr_weight' + weight[`i']
+{txt}  6{com}.         if `curr_weight' > .1*total_weight_2006[1]{c -(}
+{txt}  7{com}.                 matrix deciles_2006[`curr_cutoff',1] = resid_income[`i'-1]
+{txt}  8{com}.                 local curr_cutoff = `curr_cutoff' + 1
+{txt}  9{com}.                 local curr_weight = weight[`i']
+{txt} 10{com}.         {c )-}
+{txt} 11{com}. {c )-} 
+{txt}
+{com}. restore
+{txt}
+{com}. //Calculate 2014 weights
+. preserve
+{txt}
+{com}. drop if year == 2006
+{txt}(3,657 observations deleted)
+
+{com}. matrix deciles_2014 = J(9,1,.)
+{txt}
+{com}. egen total_weight_2014 = sum(weight)
+{txt}
+{com}. local curr_cutoff = 1
+{txt}
+{com}. local curr_weight = 0
+{txt}
+{com}. forval i = 1/`N'{c -(}
+{txt}  2{com}.         //Only need 9 cutoff vals to split into 10 deciles so this is just a way to stop loop
+.         if `curr_cutoff' == 10{c -(}
+{txt}  3{com}.                         continue, break
+{txt}  4{com}.         {c )-}
+{txt}  5{com}.     local curr_weight = `curr_weight' + weight[`i']
+{txt}  6{com}.         if `curr_weight' > .1*total_weight_2014[1]{c -(}
+{txt}  7{com}.                 matrix deciles_2014[`curr_cutoff',1] = resid_income[`i'-1]
+{txt}  8{com}.                 local curr_cutoff = `curr_cutoff' + 1
+{txt}  9{com}.                 local curr_weight = weight[`i']
+{txt} 10{com}.         {c )-}
+{txt} 11{com}. {c )-} 
+{txt}
+{com}. restore
+{txt}
+{com}. matrix list deciles_2006
+{res}
+{txt}deciles_2006[9,1]
+           c1
+r1 {res}  .5644694
+{txt}r2 {res} .71142209
+{txt}r3 {res} .82183272
+{txt}r4 {res}  .9305827
+{txt}r5 {res} 1.0250292
+{txt}r6 {res} 1.1361585
+{txt}r7 {res} 1.2725501
+{txt}r8 {res} 1.4556398
+{txt}r9 {res} 1.7417724
+{reset}
+{com}. matrix list deciles_2014
+{res}
+{txt}deciles_2014[9,1]
+           c1
+r1 {res} .48495114
+{txt}r2 {res} .69515717
+{txt}r3 {res} .83074743
+{txt}r4 {res} .94978982
+{txt}r5 {res} 1.0757822
+{txt}r6 {res} 1.1989255
+{txt}r7 {res} 1.3646816
+{txt}r8 {res} 1.5597714
+{txt}r9 {res} 1.8880662
+{reset}
+{com}. 
+. 
+. 
+. /*
+> //Define avg_incomes_residual and avg_consumption_residual to hold numbers for each decile. First col is 2006 data, second col is 2014 data
+> //Each row represents average for each decile
+> matrix avg_incomes_residual = J(10,2,.)
+> matrix avg_consumption_residual = J(10,2,.)
+> //Generate averages for the first decile of data
+> egen avg_inc_2006 = mean(resid_income) if year == 2006 & resid_income<deciles_2006[1,1]
+> egen avg_cons_2006 = mean(resid_consump) if year == 2006 & resid_income<deciles_2006[1,1]
+> egen avg_inc_2014 = mean(resid_income) if year == 2014 & resid_income<deciles_2014[1,1]
+> egen avg_cons_2014 = mean(resid_consump) if year == 2014 & resid_income<deciles_2014[1,1]
+> //Store values in respective matrices
+> sum avg_inc_2006
+> matrix avg_incomes_residual[1,1] = r(mean)
+> sum avg_cons_2006
+> matrix avg_consumption_residual[1,1] = r(mean)
+> sum avg_inc_2014
+> matrix avg_incomes_residual[1,2] = r(mean)
+> sum avg_cons_2014
+> matrix avg_consumption_residual[1,2] = r(mean)
+> //drop all new cols so don't get errors when generating them again
+> drop avg_inc_2006
+> drop avg_cons_2006
+> drop avg_inc_2014
+> drop avg_cons_2014
+> forval i=1/8{c -(}
+>         //get averages for decile of data with residual income between ith cutoff and i+1 cutoff 
+>         egen avg_inc_2006 = mean(resid_income) if year == 2006 & resid_income >= deciles_2006[`i',1] & resid_income < deciles_2006[`i'+1,1]
+>         egen avg_cons_2006 = mean(resid_consump) if year == 2006 & resid_income >= deciles_2006[`i',1] & resid_income < deciles_2006[`i'+1,1]
+>         egen avg_inc_2014 = mean(resid_income) if year == 2014 & resid_income >= deciles_2014[`i',1] & resid_income < deciles_2014[`i'+1,1]
+>         egen avg_cons_2014 = mean(resid_consump) if year == 2014 & resid_income >= deciles_2014[`i',1] & resid_income < deciles_2014[`i'+1,1]
+>         sum avg_inc_2006
+>         matrix avg_incomes_residual[`i'+1,1] = r(mean)
+>         sum avg_cons_2006
+>         matrix avg_consumption_residual[`i'+1,1] = r(mean)
+>         sum avg_inc_2014
+>         matrix avg_incomes_residual[`i'+1,2] = r(mean)
+>         sum avg_cons_2014
+>         matrix avg_consumption_residual[`i'+1,2] = r(mean)
+>         //drop all new cols so don't get errors when generating them again
+>         drop avg_inc_2006
+>         drop avg_cons_2006
+>         drop avg_inc_2014
+>         drop avg_cons_2014
+> {c )-}
+> egen avg_inc_2006 = mean(resid_income) if year == 2006 & resid_income>=deciles_2006[9,1]
+> egen avg_cons_2006 = mean(resid_consump) if year == 2006 & resid_income>=deciles_2006[9,1]
+> egen avg_inc_2014 = mean(resid_income) if year == 2014 & resid_income>=deciles_2014[9,1]
+> egen avg_cons_2014 = mean(resid_consump) if year == 2014 & resid_income>=deciles_2014[9,1]
+> sum avg_inc_2006
+> matrix avg_incomes_residual[10,1] = r(mean)
+> sum avg_cons_2006
+> matrix avg_consumption_residual[10,1] = r(mean)
+> sum avg_inc_2014
+> matrix avg_incomes_residual[10,2] = r(mean)
+> sum avg_cons_2014
+> matrix avg_consumption_residual[10,2] = r(mean)
+> //drop all new cols so don't get errors when generating them again
+> drop avg_inc_2006
+> drop avg_cons_2006
+> drop avg_inc_2014
+> drop avg_cons_2014
+> */
+. 
+. /*
+> //This chunk of code uses pre defined deciles to get elasticities
+> //Define avg_incomes_residual and avg_consumption_residual to hold numbers for each decile. First col is 2006 data, second col is 2014 data
+> //Each row represents average for each decile
+> matrix avg_incomes_residual = J(10,2,.)
+> matrix avg_consumption_residual = J(10,2,.)
+> forval i=1/10{c -(}
+>         //get averages for decile of data with residual income between ith cutoff and i+1 cutoff 
+>         egen avg_inc_2006 = mean(resid_income) if year == 2006 & cly == `i'
+>         egen avg_cons_2006 = mean(resid_consump) if year == 2006 & cly == `i'
+>         egen avg_inc_2014 = mean(resid_income) if year == 2014 & cly == `i'
+>         egen avg_cons_2014 = mean(resid_consump) if year == 2014 & cly == `i'
+>         sum avg_inc_2006
+>         matrix avg_incomes_residual[`i',1] = r(mean)
+>         sum avg_cons_2006
+>         matrix avg_consumption_residual[`i',1] = r(mean)
+>         sum avg_inc_2014
+>         matrix avg_incomes_residual[`i',2] = r(mean)
+>         sum avg_cons_2014
+>         matrix avg_consumption_residual[`i',2] = r(mean)
+>         //drop all new cols so don't get errors when generating them again
+>         drop avg_inc_2006
+>         drop avg_cons_2006
+>         drop avg_inc_2014
+>         drop avg_cons_2014
+> {c )-}
+> */
+. 
+. /*
+> //This chunk of code uses pre defined deciles to get elasticities
+> //Define avg_incomes_residual and avg_consumption_residual to hold numbers for each decile. First col is 2006 data, second col is 2014 data
+> //Each row represents average for each decile
+> matrix avg_incomes_residual = J(10,2,.)
+> matrix avg_consumption_residual = J(10,2,.)
+> forval i=1/10{c -(}
+>         //get averages for decile of data with residual income between ith cutoff and i+1 cutoff 
+>         egen avg_inc_2006 = mean(income) if year == 2006 & cly == `i'
+>         egen avg_cons_2006 = mean(consump) if year == 2006 & cly == `i'
+>         egen avg_inc_2014 = mean(income) if year == 2014 & cly == `i'
+>         egen avg_cons_2014 = mean(consump) if year == 2014 & cly == `i'
+>         sum avg_inc_2006
+>         matrix avg_incomes_actual[`i',1] = r(mean)
+>         sum avg_cons_2006
+>         matrix avg_consumption_actual[`i',1] = r(mean)
+>         sum avg_inc_2014
+>         matrix avg_incomes_actual[`i',2] = r(mean)
+>         sum avg_cons_2014
+>         matrix avg_consumption_actual[`i',2] = r(mean)
+>         //drop all new cols so don't get errors when generating them again
+>         drop avg_inc_2006
+>         drop avg_cons_2006
+>         drop avg_inc_2014
+>         drop avg_cons_2014
+> {c )-}
+> 
+> //Using matrices of averages using residual numbers we calculate deltas. First col for income, second col for consumption
+> matrix deltas_residual = J(10,2,.)
+> forval i=1/10{c -(}
+>         //to each row in deltas_residual assigns log(2014 residual income/2006 residual income)
+>         matrix deltas_residual[`i',1]=log(avg_incomes_residual[`i',2]/avg_incomes_residual[`i',1])
+>         matrix deltas_residual[`i',2]=log(avg_consumption_residual[`i',2]/avg_consumption_residual[`i',1])
+> {c )-}
+> 
+> matrix list deltas_residual
+> 
+> //Finally using deltas calculate elasticities
+> matrix elasticities_residual = J(10,1,.)
+> forval i=1/10{c -(}
+>         //to each row in elasticities_residual assigns avg residual consumption/avg residual income
+>         matrix elasticities_residual[`i',1]=deltas_residual[`i',2]/deltas_residual[`i',1]
+> {c )-}
+> 
+> matrix list elasticities_residual
+> */
+. 
+. //This whole chunk of code calculates elasticities assuming they are using actual income and consumption numbers
+. 
+. //Define matrix to hold numbers for each decile. First col is 2006 data, second col is 2014 data
+. matrix avg_incomes_actual = J(10,2,.)
+{txt}
+{com}. matrix avg_consumption_actual = J(10,2,.)
+{txt}
+{com}. //Generate averages. There's definitly a less verbose way of doing this, but it does seem to work
+. egen avg_inc_2006 = mean(income) if year == 2006 & resid_income<deciles_2006[1,1]
+{txt}(6,644 missing values generated)
+
+{com}. egen avg_cons_2006 = mean(consumption) if year == 2006 & resid_income<deciles_2006[1,1]
+{txt}(6,644 missing values generated)
+
+{com}. egen avg_inc_2014 = mean(income) if year == 2014 & resid_income<deciles_2014[1,1]
+{txt}(6,698 missing values generated)
+
+{com}. egen avg_cons_2014 = mean(consumption) if year == 2014 & resid_income<deciles_2014[1,1]
+{txt}(6,698 missing values generated)
+
+{com}. sum avg_inc_2006
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2006 {c |}{res}        380       15315           0      15315      15315
+{txt}
+{com}. matrix avg_incomes_actual[1,1] = r(mean)
+{txt}
+{com}. sum avg_cons_2006
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2006 {c |}{res}        380    17437.92           0   17437.92   17437.92
+{txt}
+{com}. matrix avg_consumption_actual[1,1] = r(mean)
+{txt}
+{com}. sum avg_inc_2014
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2014 {c |}{res}        326    7861.256           0   7861.256   7861.256
+{txt}
+{com}. matrix avg_incomes_actual[1,2] = r(mean)
+{txt}
+{com}. sum avg_cons_2014
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2014 {c |}{res}        326    11831.14           0   11831.14   11831.14
+{txt}
+{com}. matrix avg_consumption_actual[1,2] = r(mean)
+{txt}
+{com}. //drop all new cols so don't get errors when generating them again
+. drop avg_inc_2006
+{txt}
+{com}. drop avg_cons_2006
+{txt}
+{com}. drop avg_inc_2014
+{txt}
+{com}. drop avg_cons_2014
+{txt}
+{com}. forval i=1/8{c -(}
+{txt}  2{com}.         egen avg_inc_2006 = mean(income) if year == 2006 & resid_income >= deciles_2006[`i',1] & resid_income < deciles_2006[`i'+1,1]
+{txt}  3{com}.         egen avg_cons_2006 = mean(consumption) if year == 2006 & resid_income >= deciles_2006[`i',1] & resid_income < deciles_2006[`i'+1,1]
+{txt}  4{com}.         egen avg_inc_2014 = mean(income) if year == 2014 & resid_income >= deciles_2014[`i',1] & resid_income < deciles_2014[`i'+1,1]
+{txt}  5{com}.         egen avg_cons_2014 = mean(consumption) if year == 2014 & resid_income >= deciles_2014[`i',1] & resid_income < deciles_2014[`i'+1,1]
+{txt}  6{com}.         sum avg_inc_2006
+{txt}  7{com}.         matrix avg_incomes_actual[`i'+1,1] = r(mean)
+{txt}  8{com}.         sum avg_cons_2006
+{txt}  9{com}.         matrix avg_consumption_actual[`i'+1,1] = r(mean)
+{txt} 10{com}.         sum avg_inc_2014
+{txt} 11{com}.         matrix avg_incomes_actual[`i'+1,2] = r(mean)
+{txt} 12{com}.         sum avg_cons_2014
+{txt} 13{com}.         matrix avg_consumption_actual[`i'+1,2] = r(mean)
+{txt} 14{com}.         //drop all new cols so don't get errors when generating them again
+.         drop avg_inc_2006
+{txt} 15{com}.         drop avg_cons_2006
+{txt} 16{com}.         drop avg_inc_2014
+{txt} 17{com}.         drop avg_cons_2014
+{txt} 18{com}. {c )-}
+{txt}(6,655 missing values generated)
+(6,655 missing values generated)
+(6,702 missing values generated)
+(6,702 missing values generated)
+
+    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2006 {c |}{res}        369    23779.83           0   23779.83   23779.83
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2006 {c |}{res}        369    20959.49           0   20959.49   20959.49
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2014 {c |}{res}        322    17613.75           0   17613.75   17613.75
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2014 {c |}{res}        322    16277.86           0   16277.86   16277.86
+{txt}(6,646 missing values generated)
+(6,646 missing values generated)
+(6,699 missing values generated)
+(6,699 missing values generated)
+
+    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2006 {c |}{res}        378    28721.05           0   28721.05   28721.05
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2006 {c |}{res}        378    23442.48           0   23442.48   23442.48
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2014 {c |}{res}        325    22292.78           0   22292.78   22292.78
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2014 {c |}{res}        325    18589.24           0   18589.24   18589.24
+{txt}(6,638 missing values generated)
+(6,638 missing values generated)
+(6,692 missing values generated)
+(6,692 missing values generated)
+
+    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2006 {c |}{res}        386    32765.12           0   32765.12   32765.12
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2006 {c |}{res}        386    25182.62           0   25182.62   25182.62
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2014 {c |}{res}        332    27189.52           0   27189.52   27189.52
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2014 {c |}{res}        332    20583.25           0   20583.25   20583.25
+{txt}(6,659 missing values generated)
+(6,659 missing values generated)
+(6,666 missing values generated)
+(6,666 missing values generated)
+
+    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2006 {c |}{res}        365    37438.84           0   37438.84   37438.84
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2006 {c |}{res}        365    27330.32           0   27330.32   27330.32
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2014 {c |}{res}        358    30145.23           0   30145.23   30145.23
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2014 {c |}{res}        358    22435.68           0   22435.68   22435.68
+{txt}(6,665 missing values generated)
+(6,665 missing values generated)
+(6,706 missing values generated)
+(6,706 missing values generated)
+
+    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2006 {c |}{res}        359    41706.72           0   41706.72   41706.72
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2006 {c |}{res}        359    29759.33           0   29759.33   29759.33
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2014 {c |}{res}        318    34855.98           0   34855.98   34855.98
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2014 {c |}{res}        318    24426.23           0   24426.23   24426.23
+{txt}(6,650 missing values generated)
+(6,650 missing values generated)
+(6,676 missing values generated)
+(6,676 missing values generated)
+
+    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2006 {c |}{res}        374    44050.73           0   44050.73   44050.73
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2006 {c |}{res}        374    29835.83           0   29835.83   29835.83
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2014 {c |}{res}        348    36388.68           0   36388.68   36388.68
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2014 {c |}{res}        348    24500.04           0   24500.04   24500.04
+{txt}(6,674 missing values generated)
+(6,674 missing values generated)
+(6,682 missing values generated)
+(6,682 missing values generated)
+
+    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2006 {c |}{res}        350    49760.03           0   49760.03   49760.03
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2006 {c |}{res}        350    31199.88           0   31199.88   31199.88
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2014 {c |}{res}        342    40698.87           0   40698.87   40698.87
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2014 {c |}{res}        342    25526.29           0   25526.29   25526.29
+{txt}(6,681 missing values generated)
+(6,681 missing values generated)
+(6,672 missing values generated)
+(6,672 missing values generated)
+
+    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2006 {c |}{res}        343    55490.37           0   55490.37   55490.37
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2006 {c |}{res}        343    33831.34           0   33831.34   33831.34
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2014 {c |}{res}        352    46786.31           0   46786.31   46786.31
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2014 {c |}{res}        352    28422.95           0   28422.95   28422.95
+{txt}
+{com}. egen avg_inc_2006 = mean(income) if year == 2006 & resid_income>=deciles_2006[9,1]
+{txt}(6,671 missing values generated)
+
+{com}. egen avg_cons_2006 = mean(consumption) if year == 2006 & resid_income>=deciles_2006[9,1]
+{txt}(6,671 missing values generated)
+
+{com}. egen avg_inc_2014 = mean(income) if year == 2014 & resid_income>=deciles_2014[9,1]
+{txt}(6,680 missing values generated)
+
+{com}. egen avg_cons_2014 = mean(consumption) if year == 2014 & resid_income>=deciles_2014[9,1]
+{txt}(6,680 missing values generated)
+
+{com}. sum avg_inc_2006
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2006 {c |}{res}        353    81403.93           0   81403.93   81403.93
+{txt}
+{com}. matrix avg_incomes_actual[10,1] = r(mean)
+{txt}
+{com}. sum avg_cons_2006
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2006 {c |}{res}        353    43566.92           0   43566.92   43566.92
+{txt}
+{com}. matrix avg_consumption_actual[10,1] = r(mean)
+{txt}
+{com}. sum avg_inc_2014
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_inc_2014 {c |}{res}        344    65192.52           0   65192.52   65192.52
+{txt}
+{com}. matrix avg_incomes_actual[10,2] = r(mean)
+{txt}
+{com}. sum avg_cons_2014
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+avg_con~2014 {c |}{res}        344    36595.61           0   36595.61   36595.61
+{txt}
+{com}. matrix avg_consumption_actual[10,2] = r(mean)
+{txt}
+{com}. //drop all new cols so don't get errors when generating them again
+. drop avg_inc_2006
+{txt}
+{com}. drop avg_cons_2006
+{txt}
+{com}. drop avg_inc_2014
+{txt}
+{com}. drop avg_cons_2014
+{txt}
+{com}. 
+. 
+. //Using matrices of averages using residual numbers we calculate deltas. First col for income, second col for consumption
+. //Using matrices of averages using actual income and consumption numbers we calculate deltas. First col for income, second col for consumption
+. matrix deltas_actual = J(10,2,.)
+{txt}
+{com}. forval i=1/10{c -(}
+{txt}  2{com}.         matrix deltas_actual[`i',1]=log(avg_incomes_actual[`i',2]/avg_incomes_actual[`i',1])
+{txt}  3{com}.         matrix deltas_actual[`i',2]=log(avg_consumption_actual[`i',2]/avg_consumption_actual[`i',1])
+{txt}  4{com}. {c )-}
+{txt}
+{com}. 
+. matrix list deltas_actual
+{res}
+{txt}deltas_actual[10,2]
+             c1          c2
+ r1 {res} -.66688611   -.3879126
+{txt} r2 {res} -.30015787  -.25278582
+{txt} r3 {res} -.25336743  -.23196706
+{txt} r4 {res} -.18653312  -.20167651
+{txt} r5 {res} -.21668195  -.19734408
+{txt} r6 {res} -.17943751  -.19748483
+{txt} r7 {res} -.19108421  -.19703502
+{txt} r8 {res} -.20101174  -.20070529
+{txt} r9 {res} -.17061883  -.17419083
+{txt}r10 {res} -.22207882  -.17436983
+{reset}
+{com}. 
+. //Finally using deltas calculate elasticities
+. matrix elasticities_actual = J(10,1,.)
+{txt}
+{com}. forval i=1/10{c -(}
+{txt}  2{com}.         matrix elasticities_actual[`i',1]=deltas_actual[`i',2]/deltas_actual[`i',1]
+{txt}  3{com}. {c )-}
+{txt}
+{com}. 
+. matrix list elasticities_actual
+{res}
+{txt}elasticities_actual[10,1]
+            c1
+ r1 {res} .58167744
+{txt} r2 {res} .84217622
+{txt} r3 {res} .91553621
+{txt} r4 {res} 1.0811834
+{txt} r5 {res} .91075461
+{txt} r6 {res} 1.1005772
+{txt} r7 {res} 1.0311424
+{txt} r8 {res} .99847545
+{txt} r9 {res} 1.0209356
+{txt}r10 {res} .78517092
+{reset}
+{com}. 
+. 
+. 
+. sum resid_income if year == 2006
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_income {c |}{res}      3,657    1.105797    .5901191   .0078026   12.43112
+{txt}
+{com}. sum resid_income if year == 2014
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_income {c |}{res}      3,367    1.180209    .6494592   .0147701   11.55674
+{txt}
+{com}. sum income if year == 2006
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 6}income {c |}{res}      3,657    40578.62    28522.95    150.463   754629.6
+{txt}
+{com}. sum income if year == 2014
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 6}income {c |}{res}      3,367    33222.44    22727.35   250.2502   325825.8
+{txt}
+{com}. sum resid_consump  if year == 2006
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_cons~p {c |}{res}      3,657    1.066392    .4329505   .0903635   7.800539
+{txt}
+{com}. sum resid_consump if year == 2014
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+resid_cons~p {c |}{res}      3,367    1.100667    .4827179   .1427479   6.481491
+{txt}
+{com}. sum consump if year == 2006
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 1}consumption {c |}{res}      3,657    28073.07    15005.23   1527.778   273148.2
+{txt}
+{com}. sum consump if year == 2014
+
+{txt}    Variable {c |}        Obs        Mean    Std. dev.       Min        Max
+{hline 13}{c +}{hline 57}
+{space 1}consumption {c |}{res}      3,367    23054.01    12812.62   2282.282   139139.1
+{txt}
+{com}. 
+. matrix list avg_incomes_actual
+{res}
+{txt}avg_incomes_actual[10,2]
+            c1         c2
+ r1 {res} 15314.996  7861.2559
+{txt} r2 {res} 23779.832  17613.752
+{txt} r3 {res} 28721.049  22292.779
+{txt} r4 {res} 32765.121  27189.516
+{txt} r5 {res}  37438.84   30145.23
+{txt} r6 {res} 41706.719   34855.98
+{txt} r7 {res}  44050.73   36388.68
+{txt} r8 {res} 49760.027  40698.867
+{txt} r9 {res} 55490.367  46786.309
+{txt}r10 {res}  81403.93   65192.52
+{reset}
+{com}. matrix list deltas_actual
+{res}
+{txt}deltas_actual[10,2]
+             c1          c2
+ r1 {res} -.66688611   -.3879126
+{txt} r2 {res} -.30015787  -.25278582
+{txt} r3 {res} -.25336743  -.23196706
+{txt} r4 {res} -.18653312  -.20167651
+{txt} r5 {res} -.21668195  -.19734408
+{txt} r6 {res} -.17943751  -.19748483
+{txt} r7 {res} -.19108421  -.19703502
+{txt} r8 {res} -.20101174  -.20070529
+{txt} r9 {res} -.17061883  -.17419083
+{txt}r10 {res} -.22207882  -.17436983
+{reset}
+{com}. 
+{txt}end of do-file
+
+{com}. exit, clear

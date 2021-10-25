@@ -1,0 +1,194 @@
+{smcl}
+{com}{sf}{ul off}{txt}{.-}
+      name:  {res}<unnamed>
+       {txt}log:  {res}C:\Users\g1ysl01\Documents\Arce_consumption\italy_reg_results.smcl
+  {txt}log type:  {res}smcl
+ {txt}opened on:  {res}23 Sep 2021, 13:59:23
+{txt}
+{com}. 
+. use "C:\Users\g1ysl01\Documents\Arce_consumption\italy.dta" 
+{txt}
+{com}. 
+. rename anno year
+{res}{txt}
+{com}. rename eta age
+{res}{txt}
+{com}. rename ncomp hhold_size
+{res}{txt}
+{com}. rename sesso gender
+{res}{txt}
+{com}. rename ireg region 
+{res}{txt}
+{com}. 
+. gen age_sqr = age^2
+{txt}
+{com}. gen hhold_size_sqr = hhold_size^2
+{txt}
+{com}. gen ln_inc = ln(income)
+{txt}
+{com}. gen ln_consump = ln(consump)
+{txt}
+{com}. 
+. reg ln_inc age age_sqr i.gender i.educ hhold_size hhold_size_sqr i.region i.educ#year i.gender#year year 
+{txt}{p 0 6 2}note: {bf:4.educ#2014.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2014.year} omitted because of collinearity.{p_end}
+
+      Source {c |}       SS           df       MS      Number of obs   ={res}     6,710
+{txt}{hline 13}{c +}{hline 34}   F(32, 6677)     = {res}   111.48
+{txt}       Model {c |} {res} 1185.36834        32  37.0427607   {txt}Prob > F        ={res}    0.0000
+{txt}    Residual {c |} {res} 2218.65082     6,677  .332282585   {txt}R-squared       ={res}    0.3482
+{txt}{hline 13}{c +}{hline 34}   Adj R-squared   ={res}    0.3451
+{txt}       Total {c |} {res} 3404.01917     6,709  .507381005   {txt}Root MSE        =   {res} .57644
+
+{txt}{hline 15}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 1}        ln_inc{col 16}{c |} Coefficient{col 28}  Std. err.{col 40}      t{col 48}   P>|t|{col 56}     [95% con{col 69}f. interval]
+{hline 15}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 11}age {c |}{col 16}{res}{space 2} .0031383{col 28}{space 2} .0087724{col 39}{space 1}    0.36{col 48}{space 3}0.721{col 56}{space 4}-.0140584{col 69}{space 3}  .020335
+{txt}{space 7}age_sqr {c |}{col 16}{res}{space 2} .0001469{col 28}{space 2} .0000976{col 39}{space 1}    1.51{col 48}{space 3}0.132{col 56}{space 4}-.0000444{col 69}{space 3} .0003383
+{txt}{space 6}2.gender {c |}{col 16}{res}{space 2} -.102252{col 28}{space 2} .0213314{col 39}{space 1}   -4.79{col 48}{space 3}0.000{col 56}{space 4}-.1440684{col 69}{space 3}-.0604355
+{txt}{space 14} {c |}
+{space 10}educ {c |}
+{space 12}2  {c |}{col 16}{res}{space 2} .2759079{col 28}{space 2} .0346137{col 39}{space 1}    7.97{col 48}{space 3}0.000{col 56}{space 4} .2080541{col 69}{space 3} .3437618
+{txt}{space 12}3  {c |}{col 16}{res}{space 2} .6245048{col 28}{space 2} .0347017{col 39}{space 1}   18.00{col 48}{space 3}0.000{col 56}{space 4} .5564783{col 69}{space 3} .6925313
+{txt}{space 12}4  {c |}{col 16}{res}{space 2}    1.084{col 28}{space 2} .1436605{col 39}{space 1}    7.55{col 48}{space 3}0.000{col 56}{space 4} .8023794{col 69}{space 3}  1.36562
+{txt}{space 14} {c |}
+{space 4}hhold_size {c |}{col 16}{res}{space 2}  .457052{col 28}{space 2}  .020464{col 39}{space 1}   22.33{col 48}{space 3}0.000{col 56}{space 4}  .416936{col 69}{space 3}  .497168
+{txt}hhold_size_sqr {c |}{col 16}{res}{space 2}-.0477351{col 28}{space 2} .0031807{col 39}{space 1}  -15.01{col 48}{space 3}0.000{col 56}{space 4}-.0539702{col 69}{space 3}-.0414999
+{txt}{space 14} {c |}
+{space 8}region {c |}
+{space 12}2  {c |}{col 16}{res}{space 2} .0475799{col 28}{space 2} .1383738{col 39}{space 1}    0.34{col 48}{space 3}0.731{col 56}{space 4}-.2236769{col 69}{space 3} .3188367
+{txt}{space 12}3  {c |}{col 16}{res}{space 2} .1068461{col 28}{space 2} .0323712{col 39}{space 1}    3.30{col 48}{space 3}0.001{col 56}{space 4} .0433881{col 69}{space 3}  .170304
+{txt}{space 12}4  {c |}{col 16}{res}{space 2} .0239404{col 28}{space 2} .0575932{col 39}{space 1}    0.42{col 48}{space 3}0.678{col 56}{space 4}-.0889608{col 69}{space 3} .1368415
+{txt}{space 12}5  {c |}{col 16}{res}{space 2} .0078438{col 28}{space 2} .0354751{col 39}{space 1}    0.22{col 48}{space 3}0.825{col 56}{space 4}-.0616987{col 69}{space 3} .0773864
+{txt}{space 12}6  {c |}{col 16}{res}{space 2} .0565908{col 28}{space 2} .0473839{col 39}{space 1}    1.19{col 48}{space 3}0.232{col 56}{space 4}-.0362967{col 69}{space 3} .1494783
+{txt}{space 12}7  {c |}{col 16}{res}{space 2} .1036235{col 28}{space 2} .0422842{col 39}{space 1}    2.45{col 48}{space 3}0.014{col 56}{space 4} .0207329{col 69}{space 3} .1865141
+{txt}{space 12}8  {c |}{col 16}{res}{space 2} .1286108{col 28}{space 2}  .033651{col 39}{space 1}    3.82{col 48}{space 3}0.000{col 56}{space 4}  .062644{col 69}{space 3} .1945775
+{txt}{space 12}9  {c |}{col 16}{res}{space 2} .1015356{col 28}{space 2} .0355149{col 39}{space 1}    2.86{col 48}{space 3}0.004{col 56}{space 4} .0319151{col 69}{space 3} .1711562
+{txt}{space 11}10  {c |}{col 16}{res}{space 2}-.0207289{col 28}{space 2} .0482823{col 39}{space 1}   -0.43{col 48}{space 3}0.668{col 56}{space 4}-.1153776{col 69}{space 3} .0739197
+{txt}{space 11}11  {c |}{col 16}{res}{space 2} .0382702{col 28}{space 2} .0447015{col 39}{space 1}    0.86{col 48}{space 3}0.392{col 56}{space 4} -.049359{col 69}{space 3} .1258993
+{txt}{space 11}12  {c |}{col 16}{res}{space 2}-.1055126{col 28}{space 2} .0407814{col 39}{space 1}   -2.59{col 48}{space 3}0.010{col 56}{space 4}-.1854571{col 69}{space 3}-.0255681
+{txt}{space 11}13  {c |}{col 16}{res}{space 2}-.0624143{col 28}{space 2} .0476609{col 39}{space 1}   -1.31{col 48}{space 3}0.190{col 56}{space 4} -.155845{col 69}{space 3} .0310164
+{txt}{space 11}14  {c |}{col 16}{res}{space 2}-.2812038{col 28}{space 2} .0679299{col 39}{space 1}   -4.14{col 48}{space 3}0.000{col 56}{space 4}-.4143682{col 69}{space 3}-.1480395
+{txt}{space 11}15  {c |}{col 16}{res}{space 2}-.4945864{col 28}{space 2} .0351833{col 39}{space 1}  -14.06{col 48}{space 3}0.000{col 56}{space 4}-.5635568{col 69}{space 3}-.4256159
+{txt}{space 11}16  {c |}{col 16}{res}{space 2}-.3393408{col 28}{space 2}  .038143{col 39}{space 1}   -8.90{col 48}{space 3}0.000{col 56}{space 4}-.4141133{col 69}{space 3}-.2645683
+{txt}{space 11}17  {c |}{col 16}{res}{space 2}-.3173072{col 28}{space 2} .0700531{col 39}{space 1}   -4.53{col 48}{space 3}0.000{col 56}{space 4}-.4546336{col 69}{space 3}-.1799808
+{txt}{space 11}18  {c |}{col 16}{res}{space 2}-.4586314{col 28}{space 2} .0547738{col 39}{space 1}   -8.37{col 48}{space 3}0.000{col 56}{space 4}-.5660055{col 69}{space 3}-.3512572
+{txt}{space 11}19  {c |}{col 16}{res}{space 2}-.4011651{col 28}{space 2} .0354788{col 39}{space 1}  -11.31{col 48}{space 3}0.000{col 56}{space 4}-.4707148{col 69}{space 3}-.3316154
+{txt}{space 11}20  {c |}{col 16}{res}{space 2}-.1751682{col 28}{space 2} .0487373{col 39}{space 1}   -3.59{col 48}{space 3}0.000{col 56}{space 4}-.2707089{col 69}{space 3}-.0796274
+{txt}{space 14} {c |}
+{space 5}educ#year {c |}
+{space 7}1 2014  {c |}{col 16}{res}{space 2}-.1301822{col 28}{space 2} .1695916{col 39}{space 1}   -0.77{col 48}{space 3}0.443{col 56}{space 4}-.4626359{col 69}{space 3} .2022715
+{txt}{space 7}2 2014  {c |}{col 16}{res}{space 2}  -.03353{col 28}{space 2} .1624133{col 39}{space 1}   -0.21{col 48}{space 3}0.836{col 56}{space 4} -.351912{col 69}{space 3} .2848519
+{txt}{space 7}3 2014  {c |}{col 16}{res}{space 2}  .033548{col 28}{space 2}  .162263{col 39}{space 1}    0.21{col 48}{space 3}0.836{col 56}{space 4}-.2845392{col 69}{space 3} .3516353
+{txt}{space 7}4 2014  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 14} {c |}
+{space 3}gender#year {c |}
+{space 7}1 2014  {c |}{col 16}{res}{space 2} .0170673{col 28}{space 2} .0294577{col 39}{space 1}    0.58{col 48}{space 3}0.562{col 56}{space 4}-.0406793{col 69}{space 3} .0748138
+{txt}{space 7}2 2014  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 14} {c |}
+{space 10}year {c |}{col 16}{res}{space 2}-.0170299{col 28}{space 2} .0203037{col 39}{space 1}   -0.84{col 48}{space 3}0.402{col 56}{space 4}-.0568316{col 69}{space 3} .0227718
+{txt}{space 9}_cons {c |}{col 16}{res}{space 2}  42.8034{col 28}{space 2} 40.73024{col 39}{space 1}    1.05{col 48}{space 3}0.293{col 56}{space 4}-37.04088{col 69}{space 3} 122.6477
+{txt}{hline 15}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}{txt}
+{com}. predict resid_inc, residuals
+{txt}
+{com}. gen resid_income_actual = e^(resid_inc)
+{txt}
+{com}. 
+. reg ln_consump age age_sqr i.gender i.educ hhold_size hhold_size_sqr i.region i.educ#year i.gender#year year 
+{txt}{p 0 6 2}note: {bf:4.educ#2014.year} omitted because of collinearity.{p_end}
+{p 0 6 2}note: {bf:2.gender#2014.year} omitted because of collinearity.{p_end}
+
+      Source {c |}       SS           df       MS      Number of obs   ={res}     6,710
+{txt}{hline 13}{c +}{hline 34}   F(32, 6677)     = {res}   169.63
+{txt}       Model {c |} {res} 792.643289        32  24.7701028   {txt}Prob > F        ={res}    0.0000
+{txt}    Residual {c |} {res} 975.027777     6,677  .146027823   {txt}R-squared       ={res}    0.4484
+{txt}{hline 13}{c +}{hline 34}   Adj R-squared   ={res}    0.4458
+{txt}       Total {c |} {res} 1767.67107     6,709  .263477577   {txt}Root MSE        =   {res} .38214
+
+{txt}{hline 15}{c TT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{col 1}    ln_consump{col 16}{c |} Coefficient{col 28}  Std. err.{col 40}      t{col 48}   P>|t|{col 56}     [95% con{col 69}f. interval]
+{hline 15}{c +}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{space 11}age {c |}{col 16}{res}{space 2} .0071052{col 28}{space 2} .0058154{col 39}{space 1}    1.22{col 48}{space 3}0.222{col 56}{space 4}-.0042949{col 69}{space 3} .0185053
+{txt}{space 7}age_sqr {c |}{col 16}{res}{space 2} .0000355{col 28}{space 2} .0000647{col 39}{space 1}    0.55{col 48}{space 3}0.583{col 56}{space 4}-.0000913{col 69}{space 3} .0001624
+{txt}{space 6}2.gender {c |}{col 16}{res}{space 2}-.0640724{col 28}{space 2} .0141411{col 39}{space 1}   -4.53{col 48}{space 3}0.000{col 56}{space 4}-.0917936{col 69}{space 3}-.0363513
+{txt}{space 14} {c |}
+{space 10}educ {c |}
+{space 12}2  {c |}{col 16}{res}{space 2} .1861849{col 28}{space 2} .0229463{col 39}{space 1}    8.11{col 48}{space 3}0.000{col 56}{space 4} .1412029{col 69}{space 3} .2311668
+{txt}{space 12}3  {c |}{col 16}{res}{space 2} .4411779{col 28}{space 2} .0230046{col 39}{space 1}   19.18{col 48}{space 3}0.000{col 56}{space 4} .3960815{col 69}{space 3} .4862743
+{txt}{space 12}4  {c |}{col 16}{res}{space 2} .7485492{col 28}{space 2} .0952361{col 39}{space 1}    7.86{col 48}{space 3}0.000{col 56}{space 4} .5618561{col 69}{space 3} .9352423
+{txt}{space 14} {c |}
+{space 4}hhold_size {c |}{col 16}{res}{space 2} .3268968{col 28}{space 2} .0135661{col 39}{space 1}   24.10{col 48}{space 3}0.000{col 56}{space 4} .3003029{col 69}{space 3} .3534907
+{txt}hhold_size_sqr {c |}{col 16}{res}{space 2} -.031733{col 28}{space 2} .0021086{col 39}{space 1}  -15.05{col 48}{space 3}0.000{col 56}{space 4}-.0358664{col 69}{space 3}-.0275996
+{txt}{space 14} {c |}
+{space 8}region {c |}
+{space 12}2  {c |}{col 16}{res}{space 2}-.0062577{col 28}{space 2} .0917314{col 39}{space 1}   -0.07{col 48}{space 3}0.946{col 56}{space 4}-.1860804{col 69}{space 3} .1735651
+{txt}{space 12}3  {c |}{col 16}{res}{space 2} .0915877{col 28}{space 2} .0214597{col 39}{space 1}    4.27{col 48}{space 3}0.000{col 56}{space 4} .0495199{col 69}{space 3} .1336555
+{txt}{space 12}4  {c |}{col 16}{res}{space 2}-.0594344{col 28}{space 2}   .03818{col 39}{space 1}   -1.56{col 48}{space 3}0.120{col 56}{space 4}-.1342793{col 69}{space 3} .0154105
+{txt}{space 12}5  {c |}{col 16}{res}{space 2} -.064574{col 28}{space 2} .0235173{col 39}{space 1}   -2.75{col 48}{space 3}0.006{col 56}{space 4}-.1106755{col 69}{space 3}-.0184726
+{txt}{space 12}6  {c |}{col 16}{res}{space 2} .0120038{col 28}{space 2} .0314119{col 39}{space 1}    0.38{col 48}{space 3}0.702{col 56}{space 4}-.0495736{col 69}{space 3} .0735811
+{txt}{space 12}7  {c |}{col 16}{res}{space 2} .0353365{col 28}{space 2} .0280313{col 39}{space 1}    1.26{col 48}{space 3}0.207{col 56}{space 4}-.0196137{col 69}{space 3} .0902867
+{txt}{space 12}8  {c |}{col 16}{res}{space 2} .0560645{col 28}{space 2} .0223081{col 39}{space 1}    2.51{col 48}{space 3}0.012{col 56}{space 4} .0123335{col 69}{space 3} .0997954
+{txt}{space 12}9  {c |}{col 16}{res}{space 2} .0554597{col 28}{space 2} .0235437{col 39}{space 1}    2.36{col 48}{space 3}0.019{col 56}{space 4} .0093065{col 69}{space 3} .1016129
+{txt}{space 11}10  {c |}{col 16}{res}{space 2}-.0291865{col 28}{space 2} .0320075{col 39}{space 1}   -0.91{col 48}{space 3}0.362{col 56}{space 4}-.0919314{col 69}{space 3} .0335584
+{txt}{space 11}11  {c |}{col 16}{res}{space 2} .0112037{col 28}{space 2} .0296337{col 39}{space 1}    0.38{col 48}{space 3}0.705{col 56}{space 4}-.0468878{col 69}{space 3} .0692952
+{txt}{space 11}12  {c |}{col 16}{res}{space 2}-.0304848{col 28}{space 2}  .027035{col 39}{space 1}   -1.13{col 48}{space 3}0.260{col 56}{space 4} -.083482{col 69}{space 3} .0225124
+{txt}{space 11}13  {c |}{col 16}{res}{space 2}-.0804042{col 28}{space 2} .0315956{col 39}{space 1}   -2.54{col 48}{space 3}0.011{col 56}{space 4}-.1423417{col 69}{space 3}-.0184667
+{txt}{space 11}14  {c |}{col 16}{res}{space 2}-.1281638{col 28}{space 2} .0450324{col 39}{space 1}   -2.85{col 48}{space 3}0.004{col 56}{space 4}-.2164417{col 69}{space 3}-.0398859
+{txt}{space 11}15  {c |}{col 16}{res}{space 2}-.3042726{col 28}{space 2} .0233239{col 39}{space 1}  -13.05{col 48}{space 3}0.000{col 56}{space 4}-.3499948{col 69}{space 3}-.2585504
+{txt}{space 11}16  {c |}{col 16}{res}{space 2}-.2507381{col 28}{space 2} .0252859{col 39}{space 1}   -9.92{col 48}{space 3}0.000{col 56}{space 4}-.3003066{col 69}{space 3}-.2011696
+{txt}{space 11}17  {c |}{col 16}{res}{space 2}-.2401704{col 28}{space 2} .0464399{col 39}{space 1}   -5.17{col 48}{space 3}0.000{col 56}{space 4}-.3312074{col 69}{space 3}-.1491334
+{txt}{space 11}18  {c |}{col 16}{res}{space 2}-.3253626{col 28}{space 2} .0363109{col 39}{space 1}   -8.96{col 48}{space 3}0.000{col 56}{space 4}-.3965435{col 69}{space 3}-.2541816
+{txt}{space 11}19  {c |}{col 16}{res}{space 2}-.2792587{col 28}{space 2} .0235197{col 39}{space 1}  -11.87{col 48}{space 3}0.000{col 56}{space 4}-.3253649{col 69}{space 3}-.2331525
+{txt}{space 11}20  {c |}{col 16}{res}{space 2}-.1263342{col 28}{space 2} .0323092{col 39}{space 1}   -3.91{col 48}{space 3}0.000{col 56}{space 4}-.1896705{col 69}{space 3}-.0629979
+{txt}{space 14} {c |}
+{space 5}educ#year {c |}
+{space 7}1 2014  {c |}{col 16}{res}{space 2} .0051786{col 28}{space 2} .1124264{col 39}{space 1}    0.05{col 48}{space 3}0.963{col 56}{space 4}-.2152131{col 69}{space 3} .2255702
+{txt}{space 7}2 2014  {c |}{col 16}{res}{space 2} .0541927{col 28}{space 2} .1076677{col 39}{space 1}    0.50{col 48}{space 3}0.615{col 56}{space 4}-.1568705{col 69}{space 3} .2652558
+{txt}{space 7}3 2014  {c |}{col 16}{res}{space 2} .0841713{col 28}{space 2} .1075681{col 39}{space 1}    0.78{col 48}{space 3}0.434{col 56}{space 4}-.1266965{col 69}{space 3} .2950391
+{txt}{space 7}4 2014  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 14} {c |}
+{space 3}gender#year {c |}
+{space 7}1 2014  {c |}{col 16}{res}{space 2}-.0001664{col 28}{space 2} .0195282{col 39}{space 1}   -0.01{col 48}{space 3}0.993{col 56}{space 4} -.038448{col 69}{space 3} .0381152
+{txt}{space 7}2 2014  {c |}{col 16}{res}{space 2}        0{col 28}{txt}  (omitted)
+{space 14} {c |}
+{space 10}year {c |}{col 16}{res}{space 2}-.0561254{col 28}{space 2} .0134598{col 39}{space 1}   -4.17{col 48}{space 3}0.000{col 56}{space 4}-.0825109{col 69}{space 3}-.0297399
+{txt}{space 9}_cons {c |}{col 16}{res}{space 2} 121.6218{col 28}{space 2} 27.00107{col 39}{space 1}    4.50{col 48}{space 3}0.000{col 56}{space 4}  68.6911{col 69}{space 3} 174.5525
+{txt}{hline 15}{c BT}{hline 11}{hline 11}{hline 9}{hline 8}{hline 13}{hline 12}
+{res}{txt}
+{com}. predict resid_consump, residuals
+{txt}
+{com}. gen resid_consump_actual = e^(resid_consump)
+{txt}
+{com}. 
+. save "C:\Users\g1ysl01\Documents\Arce_consumption\italy_final.dta",replace
+{txt}{p 0 4 2}
+file {bf}
+C:\Users\g1ysl01\Documents\Arce_consumption\italy_final.dta{rm}
+saved
+{p_end}
+
+{com}. 
+{txt}end of do-file
+
+{com}. do "C:\Users\g1ysl01\AppData\Local\Temp\2\STDaadac_000000.tmp"
+{txt}
+{com}. log using italy_reg_results,replace
+{err}log file already open
+{txt}{search r(604), local:r(604);}
+
+end of do-file
+
+{search r(604), local:r(604);}
+
+{com}. do "C:\Users\g1ysl01\Documents\Arce_consumption\storico_stata\elasticities.do"
+{txt}
+{com}. log using italy_reg_results,replace
+{err}log file already open
+{txt}{search r(604), local:r(604);}
+
+end of do-file
+
+{search r(604), local:r(604);}
+
+{com}. exit, clear
