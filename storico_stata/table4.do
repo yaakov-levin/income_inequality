@@ -105,46 +105,101 @@ predict resid_consump_log, residuals
 gen resid_consump = exp(resid_consump_log)
 
 //Matrix that will hold data. _i for income vals, _c for consump vals, _ri for residual income vals, _rc for residual consumption vals
-//matrix final_table = J(12,9,.)
-//matrix colnames final_table = "2002" "2004" "2006" "2008" "2010" "2012" "2014" "2016" "Avg"
-//matrix rownames final_table = ">50_i" "<50_i" "ratio_i" ">50_c" "<50_c" "ratio_c" ">50_ri" "<50_ri" "ratio_ri" ">50_rc" "<50_rc" "ratio_rc"
+matrix final_table = J(12,9,.)
+matrix colnames final_table = "2002" "2004" "2006" "2008" "2010" "2012" "2014" "2016" "Avg"
+matrix rownames final_table = ">50_i" "<50_i" "ratio_i" ">50_c" "<50_c" "ratio_c" ">50_ri" "<50_ri" "ratio_ri" ">50_rc" "<50_rc" "ratio_rc"
  
-matrix income_vals = J(1,9,.)
-
 local curr_year = 2002
 local sum_ratio_vals = 0
+//loop 8 times, once for each year
 forval i = 1/8{
-	sum income [aweight = weight] if year == `curr_year', detail
-	local median = r(p50)
-	local weight_sum = r(sum_w)
+	//use only current year
 	preserve
 	drop if year != `curr_year'
-	sort(income)
-	local lower_vals = 0
-	local lower_wts = 0
-	local upper_vals = 0
-	local upper_wts = 0
+	//store median income and residual income values  
+	sum income [aweight = weight], detail
+	local income_median = r(p50)
+	sum resid_income [aweight = weight], detail
+	local resid_income_median = r(p50)
+	
+	//Create matrix to store values and weights for income, consumption, and residual numbers
+	matrix temp_nums = J(4,4,0)
+	matrix colnames temp_nums = "i" "c" "ri" "rc"
+	matrix rownames temp_nums = "sum_upper" "wt_upper" "sum_lower" "wt_lower"
+	//Loop through all values to fill in temp_nums
 	local N = _N
 	forval j = 1/`N'{
-		if income[`j']<`median'{
-			local lower_vals = `lower_vals'+income[`j']*weight[`j']
-			local lower_wts = `lower_wts' + weight[`j']
+		//if income < income_median fill in income AND consump numbers
+		if income[`j']<`income_median'{
+			//add to income cells
+			matrix temp_nums[3,1] = temp_nums[3,1]+income[`j']*weight[`j']
+			matrix temp_nums[4,1] = temp_nums[4,1]+weight[`j']
+			//add to consump cells
+			matrix temp_nums[3,2] = temp_nums[3,2]+consumption[`j']*weight[`j']
+			matrix temp_nums[4,2] = temp_nums[4,2]+weight[`j']
 		}
-		if income[`j']>`median'{
-			local upper_vals = `upper_vals'+income[`j']*weight[`j']
-			local upper_wts = `upper_wts' + weight[`j']
+		//if income > income_median fill in income AND consump numbers
+		if income[`j']>`income_median'{
+			//add to income cells
+			matrix temp_nums[1,1] = temp_nums[1,1]+income[`j']*weight[`j']
+			matrix temp_nums[2,1] = temp_nums[2,1]+weight[`j']
+			//add to consump cells
+			matrix temp_nums[1,2] = temp_nums[1,2]+consumption[`j']*weight[`j']
+			matrix temp_nums[2,2] = temp_nums[2,2]+weight[`j']
 		}
-	}
-	//Avg of the upper vals and lower vals
-	matrix income_vals[1,`i'] = (`upper_vals'/`upper_wts')/(`lower_vals'/`lower_wts') 
-	local sum_ratio_vals = `sum_ratio_vals'+income_vals[1,`i']
-	restore
+		//if resid_income < resid_income_median fill in resid_income AND resid_consump numbers
+		if resid_income[`j']<`resid_income_median'{
+			//add to income cells
+			matrix temp_nums[3,3] = temp_nums[3,3]+resid_income[`j']*weight[`j']
+			matrix temp_nums[4,3] = temp_nums[4,3]+weight[`j']
+			//add to consump cells
+			matrix temp_nums[3,4] = temp_nums[3,4]+resid_consump[`j']*weight[`j']
+			matrix temp_nums[4,4] = temp_nums[4,4]+weight[`j']
+		}
+		//if resid_income > resid_income_median fill in resid_income AND resid_consump numbers
+		if resid_income[`j']>`resid_income_median'{
+			//add to income cells
+			matrix temp_nums[1,3] = temp_nums[1,3]+resid_income[`j']*weight[`j']
+			matrix temp_nums[2,3] = temp_nums[2,3]+weight[`j']
+			//add to consump cells
+			matrix temp_nums[1,4] = temp_nums[1,4]+resid_consump[`j']*weight[`j']
+			matrix temp_nums[2,4] = temp_nums[2,4]+weight[`j']
+		}
+		
+	} 
+	//This could be done in a nested for loop, but it would be very inelible,
+	//so although this is clunky I think it's the better option. 
+	//Also it would be more legible to use row and col names instead of indices, but stata gives type mismatches when I do that
+	//Assign income values
+	matrix final_table[1,`i'] = temp_nums[1,1]/temp_nums[2,1]
+	matrix final_table[2,`i'] = temp_nums[3,1]/temp_nums[4,1]
+	matrix final_table[3,`i'] = final_table[1,`i']/final_table[2,`i']
+	//Assign consumption values
+	matrix final_table[4,`i'] = temp_nums[1,2]/temp_nums[2,2]
+	matrix final_table[5,`i'] = temp_nums[3,2]/temp_nums[4,2]
+	matrix final_table[6,`i'] = final_table[4,`i']/final_table[5,`i']
+	//Assign residual income values
+	matrix final_table[7,`i'] = temp_nums[1,3]/temp_nums[2,3]
+	matrix final_table[8,`i'] = temp_nums[3,3]/temp_nums[4,3]
+	matrix final_table[9,`i'] = final_table[7,`i']/final_table[8,`i'']
+	//Assign residual consumption values
+	matrix final_table[10,`i'] = temp_nums[1,4]/temp_nums[2,4]
+	matrix final_table[11,`i'] = temp_nums[3,4]/temp_nums[4,4]
+	matrix final_table[12,`i'] = final_table[10,`i']/final_table[11,`i']
+	//update year counter and restore data for next iteration
 	local curr_year = `curr_year' + 2
+	restore
 }
-matrix income_vals[1,9] = `sum_ratio_vals'/8
-matrix list income_vals
 
+//Calculate average values for all of the rows
+forval i=1/12{
+	local curr_sum = 0
+	forval j = 1/8{
+		local curr_sum = `curr_sum'+final_table[`i',`j']
+	}
+	matrix final_table[`i',9] = `curr_sum'/8
+}
 
-matrix colnames income_vals = "2002" "2004" "2006" "2008" "2010" "2012" "2014" "2016" "Avg"
-esttab matrix(income_vals) using table4.txt, replace
+matrix list final_table
+esttab matrix(final_table) using table4.txt, replace
 
