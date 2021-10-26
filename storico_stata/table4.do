@@ -200,6 +200,34 @@ forval i=1/12{
 	matrix final_table[`i',9] = `curr_sum'/8
 }
 
-matrix list final_table
+//To graph we add the years as an actual row (not just names of rows). And concatenating gives type mismatches ergo clunky for loop. New matrix drops col for averages and adds row for years
+matrix graphable = J(13,8,.)
+forval i=1/12{
+	forval j=1/8{
+		matrix graphable[`i',`j'] = final_table[`i',`j']
+	}
+}
+local curr_year = 2002
+forval i=1/8{
+	matrix graphable[13,`i'] = `curr_year'
+	local curr_year = `curr_year' + 2
+}
+//Transpose matrix
+matrix graphable = graphable'
+//Save as variables
+svmat graphable
+//Rename variables of interest
+rename graphable3 inc_ratio
+rename graphable6 cons_ratio
+rename graphable9 resid_inc_ratio
+rename graphable12 resid_cons_ratio
+//Already have a var called year, so call time var date
+rename graphable13 date
+
+line inc_ratio cons_ratio resid_inc_ratio resid_cons_ratio date
+graph export 50pct_ratios.png
+
 esttab matrix(final_table) using table4.txt, replace
+
+
 
