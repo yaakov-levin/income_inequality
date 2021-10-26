@@ -94,6 +94,21 @@ gen hhold_size_sqr = hhold_size^2
 gen ln_inc = ln(income)
 gen ln_consump = ln(consumption)
 
+//Run regressions as in paper and generate residual values for consumption and income
+//Note that these regressions were run using data from all years 2002-2016, so residuals differ from regressions run with less data
+reg ln_inc age age_sqr i.gender i.educ hhold_size hhold_size_sqr i.region i.educ#year i.gender#year year [pweight = weight]
+predict resid_inc_log, residuals
+gen resid_income = exp(resid_inc_log)
+
+reg ln_consump age age_sqr i.gender i.educ hhold_size hhold_size_sqr i.region i.educ#year i.gender#year year [pweight = weight]
+predict resid_consump_log, residuals
+gen resid_consump = exp(resid_consump_log)
+
+//Matrix that will hold data. _i for income vals, _c for consump vals, _ri for residual income vals, _rc for residual consumption vals
+//matrix final_table = J(12,9,.)
+//matrix colnames final_table = "2002" "2004" "2006" "2008" "2010" "2012" "2014" "2016" "Avg"
+//matrix rownames final_table = ">50_i" "<50_i" "ratio_i" ">50_c" "<50_c" "ratio_c" ">50_ri" "<50_ri" "ratio_ri" ">50_rc" "<50_rc" "ratio_rc"
+ 
 matrix income_vals = J(1,9,.)
 
 local curr_year = 2002
@@ -106,18 +121,22 @@ forval i = 1/8{
 	drop if year != `curr_year'
 	sort(income)
 	local lower_vals = 0
+	local lower_wts = 0
 	local upper_vals = 0
+	local upper_wts = 0
 	local N = _N
 	forval j = 1/`N'{
 		if income[`j']<`median'{
 			local lower_vals = `lower_vals'+income[`j']*weight[`j']
+			local lower_wts = `lower_wts' + weight[`j']
 		}
-		else{
+		if income[`j']>`median'{
 			local upper_vals = `upper_vals'+income[`j']*weight[`j']
+			local upper_wts = `upper_wts' + weight[`j']
 		}
 	}
 	//Avg of the upper vals and lower vals
-	matrix income_vals[1,`i'] = (`upper_vals'/(`weight_sum'/2))/(`lower_vals'/(`weight_sum'/2)) 
+	matrix income_vals[1,`i'] = (`upper_vals'/`upper_wts')/(`lower_vals'/`lower_wts') 
 	local sum_ratio_vals = `sum_ratio_vals'+income_vals[1,`i']
 	restore
 	local curr_year = `curr_year' + 2
