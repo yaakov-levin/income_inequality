@@ -216,16 +216,31 @@ forval i=1/8{
 matrix graphable = graphable'
 //Save as variables
 svmat graphable
-//Rename variables of interest
+//Rename variables
 rename graphable3 inc_ratio
 rename graphable6 cons_ratio
 rename graphable9 resid_inc_ratio
 rename graphable12 resid_cons_ratio
+rename graphable1 inc_top
+rename graphable2 inc_bot
+rename graphable4 cons_top
+rename graphable5 cons_bot
+rename graphable7 r_inc_top
+rename graphable8 r_inc_bot
+rename graphable10 r_cons_top
+rename graphable11 r_cons_bot
 //Already have a var called year, so call time var date
 rename graphable13 date
 
+//graph ratios
 line inc_ratio cons_ratio resid_inc_ratio resid_cons_ratio date
-graph export 50pct_ratios.png
+graph export 50pct_ratios.png, replace
+//graph non residual levels
+line inc_top inc_bot cons_top cons_bot date
+graph export 50_pct_levels.png, replace
+//graph residual levels
+line r_inc_top r_inc_bot r_cons_top r_cons_bot date
+graph export 50_pct_resid_levels.png, replace
 
 esttab matrix(final_table) using table4.txt, replace
 
