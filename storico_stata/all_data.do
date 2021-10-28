@@ -1,5 +1,7 @@
-//Creates table where ratios for 10,25,75,and 90 percentiles are calculated using the entire percentile. 
-//The 50/50 takes the ratio of weighted avg of top half of distribution with the lower half
+//Creates tables for income, consumption, residual income, residual consumption
+//for all years for all cutoff values
+
+log using italy_analysis, replace 
 
 //Merge data
 use comp.dta
@@ -226,8 +228,7 @@ esttab matrix(final_table_resid_cons) using resid_consumption_all.txt, replace
 
 
  
- /*
-
+/*
 //To graph we add the years as an actual row (not just names of rows). And concatenating gives type mismatches ergo clunky for loop. New matrix drops col for averages and adds row for years
 matrix graphable = J(13,8,.)
 forval i=1/12{
@@ -271,6 +272,5 @@ line r_inc_top r_inc_bot r_cons_top r_cons_bot date
 graph export 50_pct_resid_levels.png, replace
 
 esttab matrix(final_table) using table4.txt, replace
-
 */
 
